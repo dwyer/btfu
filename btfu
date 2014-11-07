@@ -16,7 +16,11 @@ checksum() {
 }
 
 size() {
-    stat "$path" | awk '{print $8}'
+    stat "$1" | awk '{print $8}'
+}
+
+mode() {
+    stat -f %p "$1"
 }
 
 ignore() {
