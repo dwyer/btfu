@@ -1,0 +1,93 @@
+#!/bin/bash
+
+PROGNAME=`basename "$0"`
+REPONAME=".$PROGNAME"
+IGNORE="$REPONAME .git"
+
+error() {
+    echo "error: $*" >&2
+    exit 1
+}
+
+init() {
+    if [ -e "$REPONAME" ]; then
+        error "$REPONAME already exists"
+    fi
+    mkdir "$REPONAME"
+}
+
+assert-repo() {
+    if [ ! -e "$REPONAME" ]; then
+        error "$REPONAME does not exist"
+    fi
+}
+
+checksum() {
+    shasum "$1" | awk '{print $1}'
+}
+
+size() {
+    `stat "$path" | awk '{print $8}'`
+}
+
+walk() {
+    dirname="$1"
+    tmp=`mktemp -t "$PROGNAME"`
+    for filename in `ls -A "$dirname"`; do
+        if [[ "$IGNORE" =~ "$filename" ]]; then
+            continue
+        fi
+        type=blob
+        path="$dirname/$filename"
+        if [ -d "$path" ]; then
+            type=tree
+            path=`walk "$path"`
+        fi
+        echo "$type" `checksum "$path"` "$filename" >>"$tmp"
+    done
+    idx="$REPONAME/`checksum "$tmp"`"
+    if [ -e "$idx" ]; then
+        rm "$tmp"
+    else
+        mv "$tmp" "$idx"
+    fi
+    echo "$idx"
+}
+
+usage() {
+    echo "usage: $PROGNAME [init]"
+    exit 2
+}
+
+set -- `getopt :h $*`
+
+for arg; do
+    case "$arg" in
+        -h)
+            usage
+            shift
+            ;;
+        --)
+            shift
+            ;;
+    esac
+done
+
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+for arg; do
+    case "$arg" in
+        init)
+            init
+            ;;
+        walk)
+            assert-repo
+            walk "$PWD"
+            ;;
+        *)
+            error "invalid command: $arg"
+            ;;
+    esac
+done
