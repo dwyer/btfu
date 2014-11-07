@@ -59,7 +59,7 @@ backup() {
 
 walk() {
     local dirname="$1"
-    local tmp=`mktemp -t "$PROGNAME"`
+    local tmp=`mktemp -t "$PROGNAME".XXXXXX`
     local sha=
     for filename in `ls -A "$dirname"`; do
         if ignore $filename; then
