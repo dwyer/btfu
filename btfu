@@ -11,12 +11,6 @@ error() {
     exit 1
 }
 
-assert-repo() {
-    if [ ! -e "$REPONAME" ]; then
-        error "$REPONAME does not exist"
-    fi
-}
-
 checksum() {
     shasum "$1" | awk '{print $1}'
 }
@@ -103,7 +97,7 @@ main() {
             init
             ;;
         walk)
-            assert-repo
+            [ ! -e "$REPONAME" ] && error "$REPONAME does not exist"
             local datetime=`date "+%Y-%m-%dT%H:%M:%SZ"`
             local id=`walk "$PWD"`
             echo "$datetime" $id >>"$HISTPATH"
