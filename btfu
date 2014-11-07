@@ -2,6 +2,8 @@
 
 PROGNAME=`basename "$0"`
 REPONAME=".$PROGNAME"
+HISTPATH="$REPONAME/hist"
+BLOBPATH="$REPONAME/blob"
 IGNORE="$REPONAME .git"
 
 error() {
@@ -42,30 +44,44 @@ init() {
     if [ -e "$REPONAME" ]; then
         error "$REPONAME already exists"
     fi
-    mkdir "$REPONAME"
+    mkdir "$REPONAME" "$BLOBPATH"
+}
+
+blobpath() {
+    echo "$BLOBPATH/$1"
+}
+
+backup() {
+    # TODO: compress and/or encrypt blob
+    local blob=`blobpath "$2"`
+    if [ ! -e "$blob" ]; then
+        cp "$1" "$blob"
+    fi
 }
 
 walk() {
     local dirname="$1"
     local tmp=`mktemp -t "$PROGNAME"`
+    local sha=
     for filename in `ls -A "$dirname"`; do
         if ignore $filename; then
             continue
         fi
-        type=blob
-        path="$dirname/$filename"
+        local path="$dirname/$filename"
         if [ -d "$path" ]; then
             type=tree
-            path=`walk "$path"`
+            sha=`walk "$path"`
+        else
+            type=blob
+            sha=`checksum "$path"`
+            backup "$path" "$sha"
         fi
-        echo "$type" `checksum "$path"` "$filename" >>"$tmp"
+        echo "$type" "$sha" "$filename" >>"$tmp"
     done
-    idx="$REPONAME/`checksum "$tmp"`"
-    if [ ! -e "$idx" ]; then
-        cp "$tmp" "$idx"
-    fi
+    sha=`checksum "$tmp"`
+    backup "$tmp" "$sha"
     rm "$tmp"
-    echo "$idx"
+    echo "$sha"
 }
 
 main() {
@@ -82,20 +98,31 @@ main() {
         esac
     done
     [ $# -eq 0 ] && usage
-    for arg; do
-        case "$arg" in
-            init)
-                init
-                ;;
-            walk)
-                assert-repo
-                walk "$PWD"
-                ;;
-            *)
-                error "invalid command: $arg"
-                ;;
-        esac
-    done
+    case "$1" in
+        init)
+            init
+            ;;
+        walk)
+            assert-repo
+            local datetime=`date "+%Y-%m-%dT%H:%M:%SZ"`
+            local id=`walk "$PWD"`
+            echo "$datetime" $id >>"$HISTPATH"
+            echo $id
+            ;;
+        hist)
+            tail -r "$HISTPATH"
+            ;;
+        root)
+            tail -1 "$HISTPATH" | awk '{print $2}'
+            ;;
+        blob)
+            shift
+            cat "`blobpath "$1"`"
+            ;;
+        *)
+            error "invalid command: $arg"
+            ;;
+    esac
 }
 
 main $*
