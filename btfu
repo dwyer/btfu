@@ -51,9 +51,9 @@ blobpath() {
 
 backup() {
     # TODO: compress and/or encrypt blob
-    local blob=`blobpath "$2"`
-    if [ ! -e "$blob" ]; then
-        cp "$1" "$blob"
+    local dest=`blobpath "$2"`
+    if [ ! -e "$dest" ]; then
+        cp "$1" "$dest"
     fi
 }
 
