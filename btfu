@@ -120,6 +120,9 @@ main() {
             shift
             cat "`blobpath "$1"`"
             ;;
+        clean)
+            rm -rf "$REPOPATH"
+            ;;
         *)
             error "invalid command: $arg"
             ;;
