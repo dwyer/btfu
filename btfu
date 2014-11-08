@@ -2,8 +2,10 @@
 
 PROGNAME=`basename "$0"`
 REPONAME=".$PROGNAME"
-HISTPATH="$REPONAME/hist"
-BLOBPATH="$REPONAME/blob"
+REPOPATH="$HOME/$REPONAME"
+CONFPATH="$REPOPATH.conf"
+HISTPATH="$REPOPATH/hist"
+BLOBPATH="$REPOPATH/blob"
 IGNORE="$REPONAME .git"
 
 error() {
@@ -39,10 +41,10 @@ usage() {
 }
 
 init() {
-    if [ -e "$REPONAME" ]; then
-        error "$REPONAME already exists"
+    if [ -e "$REPOPATH" ]; then
+        error "$REPOPATH already exists"
     fi
-    mkdir "$REPONAME" "$BLOBPATH"
+    mkdir "$REPOPATH" "$BLOBPATH"
 }
 
 blobpath() {
@@ -101,7 +103,7 @@ main() {
             init
             ;;
         walk)
-            [ ! -e "$REPONAME" ] && error "$REPONAME does not exist"
+            [ ! -e "$REPOPATH" ] && error "$REPOPATH does not exist"
             local datetime=`date "+%Y-%m-%dT%H:%M:%SZ"`
             local id=`walk "$PWD"`
             echo "$datetime" $id >>"$HISTPATH"
