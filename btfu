@@ -85,6 +85,7 @@ walk() {
 }
 
 main() {
+    [ -e "$CONFPATH" ] && source "$CONFPATH"
     set -- `getopt :h $*`
     for arg; do
         case "$arg" in
