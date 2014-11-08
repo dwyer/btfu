@@ -11,7 +11,7 @@ error() {
     exit 1
 }
 
-checksum() {
+blobref() {
     shasum "$1" | awk '{print $1}'
 }
 
@@ -71,12 +71,12 @@ walk() {
             sha=`walk "$path"`
         else
             type=blob
-            sha=`checksum "$path"`
+            sha=`blobref "$path"`
             backup "$path" "$sha"
         fi
         echo "$type" "$sha" "$filename" >>"$tmp"
     done
-    sha=`checksum "$tmp"`
+    sha=`blobref "$tmp"`
     backup "$tmp" "$sha"
     rm "$tmp"
     echo "$sha"
