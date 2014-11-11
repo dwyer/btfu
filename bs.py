@@ -22,9 +22,12 @@ BS_REF = 'bs_ref'
 BS_NAME = 'bs_name'
 BS_ATTR_KEYS = [BS_MODE, BS_SIZE, BS_TYPE, BS_REF, BS_NAME]
 
+BS_TYPE_BLOB = 'blob'
+BS_TYPE_TREE = 'tree'
+
 
 def attr_to_str(attr):
-    print '%06o %d %s %s %s' % (attr[key] for key in BS_ATTR_KEYS)
+    return '%06o %d %s %s %s' % tuple(attr[key] for key in BS_ATTR_KEYS)
 
 
 def blobref(blob):
@@ -54,7 +57,7 @@ def get_attr(ref, path):
             if attr[BS_TYPE] == 'tree':
                 st_nlink += 1 # TODO: make this meaningful
             return dict(attr, st_nlink=st_nlink)
-    return {}
+    return None
 
 
 def get_blob(ref, path=None, size=-1, offset=0):
@@ -151,52 +154,26 @@ def put_file(path):
     return put_blob(blob)
 
 
-def set_attr(rootref, path, attr):
-    if path == os.sep:
-        return ref
+def set_attr(rootref, path, new_attr):
     dirpath, filename = os.path.split(path)
+    if not filename:
+        return new_attr[BS_REF]
     exists = False
     tree = []
-    for row in get_tree(rootref, dirpath):
-        if row[BS_NAME] == filename:
-            tree.append(dict(
-                mod=oct(attr[BS_MODE]),
-                siz=str(attr[BS_SIZE]),
-                typ=row[BS_TYPE],
-                ref=attr[BS_REF],
-                nam=row[BS_NAME],
-            ))
+    for attr in get_tree(rootref, dirpath):
+        if attr[BS_NAME] == filename:
+            tree.append(new_attr)
             exists = True
         else:
-            tree.append(row)
+            tree.append(attr)
     if not exists:
         # TODO: handle non-existance
         return rootref
-    blob = '\n'.join(' '.join((attr[BS_MODE], attr[BS_SIZE], attr[BS_TYPE],
-                               attr[BS_REF], attr[BS_NAME])) for attr in tree)
+    blob = '\n'.join(attr_to_str(attr) for attr in tree)
     ref = put_blob(blob)
-    return set_fileref(rootref, dirpath, ref)
-
-
-def set_fileref(rootref, path, ref):
-    if path == os.sep:
+    if dirpath == os.sep:
         return ref
-    dirpath, filename = os.path.split(path)
-    tree = list(get_tree(rootref, dirpath))
-    exists = False
-    for attr in tree:
-        if attr[BS_NAME] == filename:
-            attr[BS_REF] = ref
-            attr[BS_SIZE] = str(get_blobsize(ref))
-            exists = True
-            break
-    if not exists:
-        # TODO: handle non-existance
-        return rootref
-    blob = '\n'.join(' '.join((attr[BS_MODE], attr[BS_SIZE], attr[BS_TYPE],
-                               attr[BS_REF], attr[BS_NAME])) for attr in tree)
-    ref = put_blob(blob)
-    return set_fileref(rootref, dirpath, ref)
+    return set_attr(rootref, dirpath, get_attr(rootref, dirpath))
 
 
 def set_rootref(ref):
