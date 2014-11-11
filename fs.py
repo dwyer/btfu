@@ -35,19 +35,19 @@ class BTFS(Operations):
         self.fh += 1
         fh = self.fh
         ref = self.fh_refs[fh] = bs.put_blob('')
-        dirpath, filename = os.path.split(path)
         attr = {
             bs.BS_MODE: mode,
             bs.BS_SIZE: 0,
             bs.BS_TYPE: 'blob',
             bs.BS_REF: ref,
-            bs.BS_NAME: filename,
+            bs.BS_NAME: os.path.split(path)[-1],
         }
         self.rootref = bs.set_attr(self.rootref, path, attr)
         return fh
 
     def flush(self, path, fh):
-        print 'flush', path, fh
+        # print 'flush', path, fh
+        pass
 
     def getattr(self, path, fh=None):
         # print 'getattr', path, fh
@@ -69,13 +69,12 @@ class BTFS(Operations):
     def mkdir(self, path, mode):
         # print 'mkdir', path, mode
         ref = bs.put_blob('')
-        dirpath, filename = os.path.split(path)
         attr = {
             bs.BS_MODE: mode,
             bs.BS_SIZE: 0,
             bs.BS_TYPE: 'tree',
             bs.BS_REF: ref,
-            bs.BS_NAME: filename,
+            bs.BS_NAME: os.path.split(path)[-1],
         }
         self.rootref = bs.set_attr(self.rootref, path, attr)
 
@@ -141,8 +140,18 @@ class BTFS(Operations):
         pass
 
     def symlink(self, target, source):
+        # BUG: "too many levels of symbolic links" when trying to read a linked
+        # file.
         # print 'symlink', target, source
-        pass
+        ref = bs.put_blob(source)
+        attr = {
+            bs.BS_MODE: stat.S_IFLNK | 0755,
+            bs.BS_SIZE: 0,
+            bs.BS_TYPE: 'blob',
+            bs.BS_REF: ref,
+            bs.BS_NAME: os.path.split(target)[1],
+        }
+        self.rootref = bs.set_attr(self.rootref, target, attr)
 
     def truncate(self, path, length, fh=None):
         print 'truncate', path, length, fh
