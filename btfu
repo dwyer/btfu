@@ -18,7 +18,7 @@ def btfu_add(args):
     print bs.put_file('.', is_root=True)
 
 
-def btfu_cat(args):
+def btfu_get(args):
     print bs.blob_by_ref(args.ref),
 
 
@@ -50,9 +50,9 @@ def main(args):
     # add
     subparser = subparsers.add_parser('add')
     subparser.set_defaults(func=btfu_add)
-    # cat
-    subparser = subparsers.add_parser('cat')
-    subparser.set_defaults(func=btfu_cat)
+    # get
+    subparser = subparsers.add_parser('get')
+    subparser.set_defaults(func=btfu_get)
     subparser.add_argument('ref')
     # init
     # TODO: make this automatic
