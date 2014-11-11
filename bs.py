@@ -13,6 +13,7 @@ IGNORE_FILES = [REPONAME, '.git']
 
 
 def attr_by_name(ref, name):
+    # TODO: move this over to fs.py
     for obj in tree_by_ref(ref):
         now = time.time()
         if name == obj['nam']:
@@ -31,6 +32,7 @@ def attr_by_name(ref, name):
 
 
 def attr_by_path(ref, path):
+    # TODO: move this over to fs.py
     path, name = os.path.split(path)
     ref = blobref_by_path(ref, path)
     return attr_by_name(ref, name)
@@ -159,5 +161,3 @@ def tree_put(dirpath):
 
 def files_by_path(ref, path):
     return [row['nam'] for row in tree_by_path(ref, path)]
-
-

@@ -47,6 +47,7 @@ def main(args):
     subparser.set_defaults(func=btfu_cat)
     subparser.add_argument('ref')
     # init
+    # TODO: make this automatic
     subparser = subparsers.add_parser('init')
     subparser.set_defaults(func=btfu_init)
     # list
