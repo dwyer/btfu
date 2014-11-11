@@ -166,7 +166,7 @@ def set_attr(rootref, path, new_attr):
             tree.append(attr)
     if not exists:
         tree.append(new_attr)
-        tree.sort(lambda a, b: cmp(a[BS_NAME], b[BS_NAME]))
+    tree.sort(lambda a, b: cmp(a[BS_NAME], b[BS_NAME]))
     ref = put_blob('\n'.join(attr_to_str(attr) for attr in tree))
     if dirpath == os.sep:
         return ref

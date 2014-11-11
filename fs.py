@@ -110,7 +110,19 @@ class BTFS(Operations):
 
     def rename(self, old, new):
         # print 'rename', old, new
-        pass
+        attr = bs.get_attr(self.rootref, old)
+        old_dirpath, old_filename = os.path.split(old)
+        new_dirpath, new_filename = os.path.split(new)
+        if old_dirpath == new_dirpath:
+            attr[bs.BS_NAME] = new_filename
+            self.rootref = bs.set_attr(self.rootref, old, attr)
+            return
+        new_attr = dict(attr)
+        new_attr[bs.BS_NAME] = new_filename
+        del attr[bs.BS_REF]
+        # TODO: try to do this without rebuilding the tree twice.
+        self.rootref = bs.set_attr(self.rootref, old, attr)
+        self.rootref = bs.set_attr(self.rootref, new, new_attr)
 
     def rmdir(self, path):
         # print 'rmdir', path
