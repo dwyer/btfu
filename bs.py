@@ -1,3 +1,4 @@
+import fnmatch
 import hashlib
 import os
 import stat
@@ -9,7 +10,11 @@ REPOPATH = os.path.join('.', REPONAME)
 BLOBPATH = os.path.join(REPOPATH, 'blobs')
 ROOTREF_PATH = os.path.join(REPOPATH, 'root')
 
-IGNORE_FILES = [REPONAME, '.git']
+IGNORE_FILES = [
+    REPONAME,
+    '.git',
+    '*.pyc',
+]
 
 
 def attr_by_name(ref, name):
@@ -45,44 +50,6 @@ def blob_by_ref(ref):
 
 def blob_by_path(ref, path):
     return blob_by_ref(blobref_by_path(ref, path))
-
-
-def blob_put(path, is_root=True):
-    def tree_put(dirpath):
-        ls = []
-        for name in os.listdir(dirpath):
-            if name in IGNORE_FILES:
-                continue
-            path = os.path.join(dirpath, name)
-            ref = blob_put(path)
-            if os.path.isfile(path) or os.path.islink(path):
-                typ = 'blob'
-            elif os.path.isdir(path):
-                typ = 'tree'
-            st = os.lstat(path)
-            mod = '%06o' % st.st_mode
-            siz = str(st.st_size)
-            ls.append((mod, siz, typ, ref, name))
-        return '\n'.join(' '.join(x) for x in ls)
-    if os.path.islink(path):
-        blob = os.readlink(path)
-    elif os.path.isfile(path):
-        f = open(path, 'rb')
-        blob = f.read()
-        f.close()
-    else:
-        blob = tree_put(path)
-    ref = blobref_by_blob(blob)
-    blobpath = os.path.join(BLOBPATH, ref)
-    if not os.path.exists(blobpath):
-        f = open(blobpath, 'wb')
-        f.write(blob)
-        f.close()
-    if is_root:
-        f = open(ROOTREF_PATH, 'wb')
-        f.write(ref)
-        f.close()
-    return ref
 
 
 def blobref_by_blob(blob):
@@ -123,6 +90,49 @@ def init():
         os.mkdir(BLOBPATH)
     except OSError, e:
         print e
+
+
+def put_file(path, is_root=True):
+    def ignore(name):
+        for glob in IGNORE_FILES:
+            if fnmatch.fnmatch(name, glob):
+                return True
+        return False
+    def tree_put(dirpath):
+        ls = []
+        for name in os.listdir(dirpath):
+            if ignore(name):
+                continue
+            path = os.path.join(dirpath, name)
+            ref = put_file(path)
+            if os.path.isfile(path) or os.path.islink(path):
+                typ = 'blob'
+            elif os.path.isdir(path):
+                typ = 'tree'
+            st = os.lstat(path)
+            mod = '%06o' % st.st_mode
+            siz = str(st.st_size)
+            ls.append((mod, siz, typ, ref, name))
+        return '\n'.join(' '.join(x) for x in ls)
+    if os.path.islink(path):
+        blob = os.readlink(path)
+    elif os.path.isfile(path):
+        f = open(path, 'rb')
+        blob = f.read()
+        f.close()
+    else:
+        blob = tree_put(path)
+    ref = blobref_by_blob(blob)
+    blobpath = os.path.join(BLOBPATH, ref)
+    if not os.path.exists(blobpath):
+        f = open(blobpath, 'wb')
+        f.write(blob)
+        f.close()
+    if is_root:
+        f = open(ROOTREF_PATH, 'wb')
+        f.write(ref)
+        f.close()
+    return ref
 
 
 def rootref():
