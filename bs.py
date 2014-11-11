@@ -92,6 +92,16 @@ def init():
         print e
 
 
+def put_blob(blob):
+    ref = blobref_by_blob(blob)
+    blobpath = os.path.join(BLOBPATH, ref)
+    if not os.path.exists(blobpath):
+        f = open(blobpath, 'wb')
+        f.write(blob)
+        f.close()
+    return ref
+
+
 def put_file(path, is_root=True):
     def ignore(name):
         for glob in IGNORE_FILES:
@@ -122,12 +132,7 @@ def put_file(path, is_root=True):
         f.close()
     else:
         blob = put_tree(path)
-    ref = blobref_by_blob(blob)
-    blobpath = os.path.join(BLOBPATH, ref)
-    if not os.path.exists(blobpath):
-        f = open(blobpath, 'wb')
-        f.write(blob)
-        f.close()
+    ref = put_blob(blob)
     if is_root:
         f = open(ROOTREF_PATH, 'wb')
         f.write(ref)
