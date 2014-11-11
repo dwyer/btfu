@@ -113,7 +113,7 @@ def put_blob(blob):
     return ref
 
 
-def put_file(path, is_root=True):
+def put_file(path, is_root=False):
     def ignore(name):
         for glob in IGNORE_FILES:
             if fnmatch.fnmatch(name, glob):
