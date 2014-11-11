@@ -53,10 +53,7 @@ def get_attr(ref, path):
     ref = blobref_by_path(ref, path)
     for attr in get_tree(ref):
         if name == attr[BS_NAME]:
-            st_nlink = 1
-            if attr[BS_TYPE] == 'tree':
-                st_nlink += 1 # TODO: make this meaningful
-            return dict(attr, st_nlink=st_nlink)
+            return attr
     return None
 
 
