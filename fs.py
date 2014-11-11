@@ -55,7 +55,7 @@ class BTFS(Operations):
         if path == os.sep:
             now = time.time()
             return dict(st_mode=(stat.S_IFDIR | 0755), st_nlink=2)
-        attr = bs.attr_by_path(self.rootref, path)
+        attr = bs.get_attr(self.rootref, path)
         if not attr:
             raise FuseOSError(errno.ENOENT)
         return attr

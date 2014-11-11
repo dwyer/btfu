@@ -23,18 +23,6 @@ BS_NAME = 'bs_name'
 BS_ATTR_KEYS = [BS_MODE, BS_SIZE, BS_TYPE, BS_REF, BS_NAME]
 
 
-def attr_by_path(ref, path):
-    path, name = os.path.split(path)
-    ref = blobref_by_path(ref, path)
-    for attr in get_tree(ref):
-        if name == attr[BS_NAME]:
-            st_nlink = 1 # TODO: make this meaningful
-            if attr[BS_TYPE] == 'tree':
-                st_nlink += 1
-            return dict(attr, st_nlink=st_nlink)
-    return {}
-
-
 def attr_to_str(attr):
     print '%06o %d %s %s %s' % (attr[key] for key in BS_ATTR_KEYS)
 
@@ -55,6 +43,18 @@ def blobref_by_path(ref, path):
         if obj[BS_NAME] == name:
             return blobref_by_path(obj[BS_REF], path)
     return ref
+
+
+def get_attr(ref, path):
+    path, name = os.path.split(path)
+    ref = blobref_by_path(ref, path)
+    for attr in get_tree(ref):
+        if name == attr[BS_NAME]:
+            st_nlink = 1
+            if attr[BS_TYPE] == 'tree':
+                st_nlink += 1 # TODO: make this meaningful
+            return dict(attr, st_nlink=st_nlink)
+    return {}
 
 
 def get_blob(ref, path=None, size=-1, offset=0):
