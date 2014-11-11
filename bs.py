@@ -52,7 +52,7 @@ def blob_by_path(ref, path):
     return blob_by_ref(blobref_by_path(ref, path))
 
 
-def blobref_by_blob(blob):
+def blobref(blob):
     return 'sha1-%s' % hashlib.sha1(blob).hexdigest()
 
 
@@ -93,7 +93,7 @@ def init():
 
 
 def put_blob(blob):
-    ref = blobref_by_blob(blob)
+    ref = blobref(blob)
     blobpath = os.path.join(BLOBPATH, ref)
     if not os.path.exists(blobpath):
         f = open(blobpath, 'wb')
@@ -156,7 +156,7 @@ def tree_by_ref(ref):
 
 
 def tree_make(ref, path, mode):
-    newref = blobref_by_blob('')
+    newref = blobref('')
     path, name = os.path.split(path)
     if name in files_by_path(ref, path):
         return None
