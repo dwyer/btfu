@@ -61,15 +61,15 @@ def blobref_by_path(ref, path):
     return ref
 
 
-def blob_path_by_ref(ref):
-    return os.path.join(BLOBPATH, ref)
-
-
 def get_blob(ref, path=None):
     if path is not None:
         ref = blobref_by_path(ref, path)
-    with open(blob_path_by_ref(ref), 'rb') as f:
+    with open(get_blobpath(ref), 'rb') as f:
         return f.read()
+
+
+def get_blobpath(ref):
+    return os.path.join(BLOBPATH, ref)
 
 
 def get_tree(ref, path=None):

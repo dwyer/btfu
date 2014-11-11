@@ -64,11 +64,12 @@ class BTFS(Operations):
         self.rootref = ref or self.rootref
 
     def open(self, path, flags):
+        # TODO: If the write flag is set, open a temporary copy.
         print 'open', path, flags
         ref = bs.blobref_by_path(self.rootref, path)
         if not ref:
             return 0
-        path = bs.blob_path_by_ref(ref)
+        path = bs.get_blobpath(ref)
         return os.open(path, flags)
 
     def read(self, path, size, offset, fh):
