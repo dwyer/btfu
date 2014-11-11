@@ -68,6 +68,10 @@ def get_blobpath(ref):
     return os.path.join(BLOBPATH, ref)
 
 
+def get_blobsize(ref):
+    return os.stat(get_blobpath(ref)).st_size
+
+
 def get_rootref():
     with open(ROOTREF_PATH, 'rb') as f:
         return f.read()
@@ -146,6 +150,27 @@ def put_file(path, is_root=False):
         f.write(ref)
         f.close()
     return ref
+
+
+def set_fileref(rootref, path, ref):
+    if path == os.sep:
+        return ref
+    dirpath, filename = os.path.split(path)
+    tree = list(get_tree(rootref, dirpath))
+    exists = False
+    for attr in tree:
+        if attr['nam'] == filename:
+            attr['ref'] = ref
+            attr['siz'] = str(get_blobsize(ref))
+            exists = True
+            break
+    if not exists:
+        # TODO: handle non-existance
+        return rootref
+    blob = '\n'.join(' '.join((attr['mod'], attr['siz'], attr['typ'],
+                               attr['ref'], attr['nam'])) for attr in tree)
+    ref = put_blob(blob)
+    return set_fileref(rootref, dirpath, ref)
 
 
 def tree_make(ref, path, mode):

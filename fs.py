@@ -39,9 +39,11 @@ class BTFS(Operations):
     def create(self, path, mode):
         # print 'create', path, mode
         self.fh += 1
-        self.fh_refs[self.fh] = bs.put_blob('')
+        fh = self.fh
+        ref = self.fh_refs[fh] = bs.put_blob('')
         self.tempfiles[path] = dict(st_mode=mode, st_nlink=1)
-        return self.fh
+        bs.set_fileref(self.rootref, path, ref)
+        return fh
 
     def flush(self, path, fh):
         print 'flush', path, fh
@@ -140,9 +142,11 @@ class BTFS(Operations):
 
     def write(self, path, data, offset, fh):
         # print 'write', path, offset, fh
-        self.fh_refs[fh] = bs.put_blob(
+        ref = self.fh_refs[fh] = bs.put_blob(
             bs.get_blob(self.fh_refs[fh], size=offset) + data)
-        print self.fh_refs[fh]
+        print 'add blob', ref
+        self.rootref = bs.set_fileref(self.rootref, path, ref)
+        print 'new root', self.rootref
         return len(data)
 
 
