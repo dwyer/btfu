@@ -62,7 +62,7 @@ backup() {
 walk() {
     local dirname="$1"
     local tmp=`mktemp -t "$PROGNAME".XXXXXX`
-    local sha=
+    local ref=
     for filename in `ls -A "$dirname"`; do
         if ignore $filename; then
             continue
@@ -70,18 +70,18 @@ walk() {
         local path="$dirname/$filename"
         if [ -d "$path" ]; then
             type=tree
-            sha=`walk "$path"`
+            ref=`walk "$path"`
         else
             type=blob
-            sha=`blobref "$path"`
-            backup "$path" "$sha"
+            ref=`blobref "$path"`
+            backup "$path" "$ref"
         fi
-        echo "$type" "$sha" "$filename" >>"$tmp"
+        echo "$type" "$ref" "$filename" >>"$tmp"
     done
-    sha=`blobref "$tmp"`
-    backup "$tmp" "$sha"
+    ref=`blobref "$tmp"`
+    backup "$tmp" "$ref"
     rm "$tmp"
-    echo "$sha"
+    echo "$ref"
 }
 
 main() {
