@@ -142,7 +142,7 @@ class BTFS(Operations):
         print 'truncate', path, length, fh
         attr = bs.get_attr(self.rootref, path)
         attr[bs.BS_REF] = \
-            bs.put_blob(bs.get_blob(attr[bs.BS_REF], offset=length))
+            bs.put_blob(bs.get_blob(attr[bs.BS_REF], size=length))
         self.rootref = bs.set_attr(self.rootref, path, attr)
         if fh is not None:
             self.fh_refs[fh] = attr[bs.BS_REF]
