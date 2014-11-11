@@ -67,14 +67,14 @@ def blob_path_by_ref(ref):
 
 def get_blob(ref, path=None):
     if path is not None:
-        return get_blob(blobref_by_path(ref, path))
+        ref = blobref_by_path(ref, path)
     with open(blob_path_by_ref(ref), 'rb') as f:
         return f.read()
 
 
 def get_tree(ref, path=None):
     if path is not None:
-        return get_tree(blobref_by_path(ref, path))
+        ref = blobref_by_path(ref, path)
     keys = ['mod', 'siz', 'typ', 'ref', 'nam']
     for line in get_blob(ref).splitlines():
         yield dict(zip(keys, line.split()))
