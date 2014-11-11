@@ -9,7 +9,7 @@ import time
 
 from fuse import FUSE, FuseOSError, Operations
 
-import btfu
+import bs
 
 
 class BTFS(Operations):
@@ -20,12 +20,12 @@ class BTFS(Operations):
     @property
     def rootref(self):
         if self.__rootref is None:
-            self.__rootref = btfu.rootref()
+            self.__rootref = bs.rootref()
         return self.__rootref
 
     def access(self, path, mode):
         print 'access', path, mode
-        if btfu.blobref_by_path(self.rootref, path) is None:
+        if bs.blobref_by_path(self.rootref, path) is None:
             raise FuseOSError(errno.EACCES)
 
     def chmod(self, path, mode):
@@ -45,7 +45,7 @@ class BTFS(Operations):
         if path == os.sep:
             now = time.time()
             return dict(st_mode=(stat.S_IFDIR | 0755), st_nlink=2)
-        attr = btfu.attr_by_path(self.rootref, path)
+        attr = bs.attr_by_path(self.rootref, path)
         if not attr:
             raise FuseOSError(errno.ENOENT)
         return attr
@@ -60,15 +60,15 @@ class BTFS(Operations):
 
     def mkdir(self, path, mode):
         print 'mkdir', path, mode
-        ref = btfu.tree_make(self.rootref, path, mode)
+        ref = bs.tree_make(self.rootref, path, mode)
         self.rootref = ref or self.rootref
 
     def open(self, path, flags):
         print 'open', path, flags
-        ref = btfu.blobref_by_path(self.rootref, path)
+        ref = bs.blobref_by_path(self.rootref, path)
         if not ref:
             return 0
-        path = btfu.blob_path_by_ref(ref)
+        path = bs.blob_path_by_ref(ref)
         return os.open(path, flags)
 
     def read(self, path, size, offset, fh):
@@ -78,11 +78,11 @@ class BTFS(Operations):
 
     def readdir(self, path, fh):
         print 'readdir', path, fh
-        return ['.', '..'] + btfu.files_by_path(self.rootref, path)
+        return ['.', '..'] + bs.files_by_path(self.rootref, path)
 
     def readlink(self, path):
         print 'readlink', path
-        return btfu.blob_by_path(self.rootref, path)
+        return bs.blob_by_path(self.rootref, path)
 
     def removexattr(self, path, name):
         print 'removexattr', path, name
