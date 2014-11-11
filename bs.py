@@ -114,7 +114,7 @@ def put_blob(blob):
     return ref
 
 
-def put_file(path, is_root=False):
+def put_file(path):
     def ignore(name):
         for glob in IGNORE_FILES:
             if fnmatch.fnmatch(name, glob):
@@ -144,12 +144,7 @@ def put_file(path, is_root=False):
         f.close()
     else:
         blob = put_tree(path)
-    ref = put_blob(blob)
-    if is_root:
-        f = open(ROOTREF_PATH, 'wb')
-        f.write(ref)
-        f.close()
-    return ref
+    return put_blob(blob)
 
 
 def set_fileref(rootref, path, ref):
@@ -171,6 +166,12 @@ def set_fileref(rootref, path, ref):
                                attr['ref'], attr['nam'])) for attr in tree)
     ref = put_blob(blob)
     return set_fileref(rootref, dirpath, ref)
+
+
+def set_rootref(ref):
+    f = open(ROOTREF_PATH, 'wb')
+    f.write(ref)
+    f.close()
 
 
 def tree_make(ref, path, mode):

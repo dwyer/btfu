@@ -15,7 +15,9 @@ import bs
 def btfu_add(args):
     # FIXME: right now `add` just rebuilds the entire root tree. It should be
     # able to add a single file and simply rebuild its parent branches.
-    print bs.put_file('.', is_root=True)
+    ref = bs.put_file('.')
+    bs.set_rootref(ref)
+    print ref
 
 
 def btfu_get(args):
