@@ -130,9 +130,9 @@ def put_file(path):
             st = os.lstat(path)
             attr = {
                 BS_MODE: st.st_mode,
-                BS_REF: put_file(path),
                 BS_TYPE: (BS_TYPE_BLOB if os.path.isfile(path) or
                           os.path.islink(path) else BS_TYPE_TREE),
+                BS_REF: put_file(path),
                 BS_NAME: name,
             }
             ls.append(attr_to_str(attr))
