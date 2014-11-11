@@ -172,11 +172,9 @@ class BTFS(Operations):
         # print 'write', path, offset, fh
         ref = self.fh_refs[fh] = bs.put_blob(
             bs.get_blob(self.fh_refs[fh], size=offset) + data)
-        print 'add blob', ref
         attr = self.getattr(path, fh)
         attr[bs.BS_REF] = ref
         self.rootref = bs.set_attr(self.rootref, path, attr)
-        print 'new root', self.rootref
         return len(data)
 
 
