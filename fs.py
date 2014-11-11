@@ -13,13 +13,12 @@ class BTFS(Operations):
 
     def __init__(self, rootref=None):
         self.rootref = rootref
-        self.tempfiles = {}
         self.fh = 0
         self.fh_refs = {}
 
     def access(self, path, mode):
         # print 'access', path, mode
-        if path in self.tempfiles or bs.blobref_by_path(self.rootref, path):
+        if bs.blobref_by_path(self.rootref, path):
             return 0
         raise FuseOSError(errno.EACCES)
 
@@ -30,10 +29,6 @@ class BTFS(Operations):
     def chown(self, path, uid, gid):
         # print 'chown', path, uid, gid
         return 0
-
-    def close(self, fd):
-        # print 'close', fd
-        return os.close(fd)
 
     def create(self, path, mode):
         # print 'create', path, mode
@@ -56,8 +51,6 @@ class BTFS(Operations):
 
     def getattr(self, path, fh=None):
         # print 'getattr', path, fh
-        if path in self.tempfiles:
-            return self.tempfiles[path]
         if path == os.sep:
             return dict(st_mode=(stat.S_IFDIR | 0755), st_nlink=2)
         attr = bs.get_attr(self.rootref, path)
@@ -101,8 +94,6 @@ class BTFS(Operations):
     def release(self, path, fh):
         # print 'release', path, fh
         # TODO: add path to root
-        if path in self.tempfiles:
-            del self.tempfiles[path]
         del self.fh_refs[fh]
 
     def removexattr(self, path, name):
