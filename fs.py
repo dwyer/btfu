@@ -24,6 +24,9 @@ class BTFS(Operations):
 
     def chmod(self, path, mode):
         # print 'chmod', path, mode
+        attr = bs.get_attr(self.rootref, path)
+        attr[bs.BS_MODE] = mode
+        self.rootref = bs.set_attr(self.rootref, path, attr)
         return 0
 
     def chown(self, path, uid, gid):
