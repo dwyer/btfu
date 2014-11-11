@@ -19,7 +19,7 @@ def btfu_add(args):
 
 
 def btfu_get(args):
-    print bs.blob_by_ref(args.ref),
+    print bs.get_blob(args.ref),
 
 
 def btfu_init(args):
