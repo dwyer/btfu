@@ -72,7 +72,9 @@ def get_blob(ref, path=None):
         return f.read()
 
 
-def get_tree(ref):
+def get_tree(ref, path=None):
+    if path is not None:
+        return get_tree(blobref_by_path(ref, path))
     keys = ['mod', 'siz', 'typ', 'ref', 'nam']
     for line in get_blob(ref).splitlines():
         yield dict(zip(keys, line.split()))
@@ -149,10 +151,6 @@ def rootref():
         return f.read()
 
 
-def tree_by_path(ref, path):
-    return get_tree(blobref_by_path(ref, path))
-
-
 def tree_make(ref, path, mode):
     newref = blobref('')
     path, name = os.path.split(path)
@@ -162,11 +160,11 @@ def tree_make(ref, path, mode):
     while name:
         print i, path, name
         path, name = os.path.split(path)
-        for attr in tree_by_path(ref, path):
+        for attr in get_tree(ref, path):
             print attr
         i += 1
     return ref
 
 
 def files_by_path(ref, path):
-    return [row['nam'] for row in tree_by_path(ref, path)]
+    return [row['nam'] for row in get_tree(ref, path)]
