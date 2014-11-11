@@ -140,8 +140,9 @@ class BTFS(Operations):
             self.fh_refs[fh] = attr[bs.BS_REF]
 
     def unlink(self, path):
-        # print 'unlink', path
-        pass
+        attr = bs.get_attr(self.rootref, path)
+        del attr[bs.BS_REF]
+        self.rootref = bs.set_attr(self.rootref, path, attr)
 
     def utimens(self, path, times=None):
         # print 'utimens', path, times

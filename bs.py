@@ -162,7 +162,8 @@ def set_attr(rootref, path, new_attr):
     tree = []
     for attr in get_tree(rootref, dirpath):
         if attr[BS_NAME] == filename:
-            tree.append(new_attr)
+            if BS_REF in new_attr:
+                tree.append(new_attr)
             exists = True
         else:
             tree.append(attr)
