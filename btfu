@@ -40,6 +40,13 @@ def btfu_mount(args):
         print >>sys.stderr, 'error: mount requires additional libraries:', e
 
 
+def btfu_put(args):
+    if args.path is None:
+        print bs.put_blob(sys.stdin.read())
+    else:
+        print bs.put_file(args.path)
+
+
 def btfu_rootref(args):
     print bs.get_rootref()
 
@@ -61,12 +68,16 @@ def main(args):
     # list
     subparser = subparsers.add_parser('list')
     subparser.set_defaults(func=btfu_list)
-    subparser.add_argument('ref', nargs='?', default=None)
+    subparser.add_argument('ref', nargs='?')
     # mount
     subparser = subparsers.add_parser('mount')
     subparser.set_defaults(func=btfu_mount)
     subparser.add_argument('mountpoint')
-    subparser.add_argument('rootref', nargs='?', default=None)
+    subparser.add_argument('rootref', nargs='?')
+    # put
+    subparser = subparsers.add_parser('put')
+    subparser.set_defaults(func=btfu_put)
+    subparser.add_argument('path', nargs='?')
     # rootref
     subparser = subparsers.add_parser('rootref')
     subparser.set_defaults(func=btfu_rootref)
