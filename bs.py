@@ -2,7 +2,6 @@ import fnmatch
 import hashlib
 import os
 import stat
-import time
 
 
 REPONAME = '.btfu'
@@ -20,13 +19,9 @@ IGNORE_FILES = [
 def attr_by_name(ref, name):
     # TODO: move this over to fs.py
     for obj in get_tree(ref):
-        now = time.time()
         if name == obj['nam']:
             attr = dict(
                 st_mode=(int(obj['mod'], 8)),
-                st_atime=now,
-                st_ctime=now,
-                st_mtime=now,
                 st_nlink=1, # TODO: make this meaningful
             )
             if obj['typ'] == 'tree':
@@ -61,11 +56,12 @@ def blobref_by_path(ref, path):
     return ref
 
 
-def get_blob(ref, path=None):
+def get_blob(ref, path=None, size=-1, offset=0):
     if path is not None:
         ref = blobref_by_path(ref, path)
     with open(get_blobpath(ref), 'rb') as f:
-        return f.read()
+        f.seek(offset)
+        return f.read(size)
 
 
 def get_blobpath(ref):
@@ -110,6 +106,7 @@ def put_blob(blob):
         f = open(blobpath, 'wb')
         f.write(blob)
         f.close()
+        os.chmod(blobpath, 0400)
     return ref
 
 
