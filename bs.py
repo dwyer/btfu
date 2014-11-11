@@ -48,6 +48,22 @@ def blob_by_path(ref, path):
 
 
 def blob_put(path, is_root=True):
+    def tree_put(dirpath):
+        ls = []
+        for name in os.listdir(dirpath):
+            if name in IGNORE_FILES:
+                continue
+            path = os.path.join(dirpath, name)
+            ref = blob_put(path)
+            if os.path.isfile(path) or os.path.islink(path):
+                typ = 'blob'
+            elif os.path.isdir(path):
+                typ = 'tree'
+            st = os.lstat(path)
+            mod = '%06o' % st.st_mode
+            siz = str(st.st_size)
+            ls.append((mod, siz, typ, ref, name))
+        return '\n'.join(' '.join(x) for x in ls)
     if os.path.islink(path):
         blob = os.readlink(path)
     elif os.path.isfile(path):
@@ -137,26 +153,6 @@ def tree_make(ref, path, mode):
             print attr
         i += 1
     return ref
-
-
-def tree_put(dirpath):
-    ls = []
-    for name in os.listdir(dirpath):
-        if name in IGNORE_FILES:
-            continue
-        path = os.path.join(dirpath, name)
-        ref = blob_put(path)
-        if os.path.islink(path):
-            typ = 'blob'
-        elif os.path.isfile(path):
-            typ = 'blob'
-        elif os.path.isdir(path):
-            typ = 'tree'
-        st = os.lstat(path)
-        mod = '%06o' % st.st_mode
-        siz = str(st.st_size)
-        ls.append((mod, siz, typ, ref, name))
-    return '\n'.join(' '.join(x) for x in ls)
 
 
 def files_by_path(ref, path):
