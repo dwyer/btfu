@@ -3,7 +3,6 @@ import logging
 import os
 import stat
 import sys
-import time
 
 from fuse import FUSE, FuseOSError, Operations
 
@@ -41,8 +40,15 @@ class BTFS(Operations):
         self.fh += 1
         fh = self.fh
         ref = self.fh_refs[fh] = bs.put_blob('')
-        self.tempfiles[path] = dict(st_mode=mode, st_nlink=1)
-        bs.set_fileref(self.rootref, path, ref)
+        dirpath, filename = os.path.split(path)
+        attr = {
+            bs.BS_MODE: mode,
+            bs.BS_SIZE: 0,
+            bs.BS_TYPE: 'blob',
+            bs.BS_REF: ref,
+            bs.BS_NAME: filename,
+        }
+        self.rootref = bs.set_attr(self.rootref, path, attr)
         return fh
 
     def flush(self, path, fh):
@@ -53,7 +59,6 @@ class BTFS(Operations):
         if path in self.tempfiles:
             return self.tempfiles[path]
         if path == os.sep:
-            now = time.time()
             return dict(st_mode=(stat.S_IFDIR | 0755), st_nlink=2)
         attr = bs.get_attr(self.rootref, path)
         if not attr:
