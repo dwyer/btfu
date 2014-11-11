@@ -82,7 +82,7 @@ class BTFS(Operations):
 
     def readlink(self, path):
         print 'readlink', path
-        return bs.blob_by_path(self.rootref, path)
+        return bs.get_blob(self.rootref, path)
 
     def removexattr(self, path, name):
         print 'removexattr', path, name

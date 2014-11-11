@@ -43,10 +43,6 @@ def attr_by_path(ref, path):
     return attr_by_name(ref, name)
 
 
-def blob_by_path(ref, path):
-    return get_blob(blobref_by_path(ref, path))
-
-
 def blobref(blob):
     return 'sha1-%s' % hashlib.sha1(blob).hexdigest()
 
@@ -69,7 +65,9 @@ def blob_path_by_ref(ref):
     return os.path.join(BLOBPATH, ref)
 
 
-def get_blob(ref):
+def get_blob(ref, path=None):
+    if path is not None:
+        return get_blob(blobref_by_path(ref, path))
     with open(blob_path_by_ref(ref), 'rb') as f:
         return f.read()
 
