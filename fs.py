@@ -35,12 +35,8 @@ class BTFS(Operations):
         self.fh += 1
         fh = self.fh
         ref = self.fh_refs[fh] = bs.put_blob('')
-        attr = {
-            bs.BS_MODE: mode,
-            bs.BS_TYPE: 'blob',
-            bs.BS_REF: ref,
-            bs.BS_NAME: os.path.split(path)[-1],
-        }
+        attr = {bs.BS_MODE: mode, bs.BS_TYPE: bs.BS_TYPE_BLOB, bs.BS_REF: ref,
+                bs.BS_NAME: os.path.split(path)[-1]}
         self.rootref = bs.set_attr(self.rootref, path, attr)
         return fh
 
@@ -68,12 +64,8 @@ class BTFS(Operations):
     def mkdir(self, path, mode):
         # print 'mkdir', path, mode
         ref = bs.put_blob('')
-        attr = {
-            bs.BS_MODE: mode,
-            bs.BS_TYPE: 'tree',
-            bs.BS_REF: ref,
-            bs.BS_NAME: os.path.split(path)[-1],
-        }
+        attr = {bs.BS_MODE: mode, bs.BS_TYPE: bs.BS_TYPE_TREE, bs.BS_REF: ref,
+                bs.BS_NAME: os.path.split(path)[-1]}
         self.rootref = bs.set_attr(self.rootref, path, attr)
 
     def open(self, path, flags):
@@ -142,12 +134,8 @@ class BTFS(Operations):
         # file.
         # print 'symlink', target, source
         ref = bs.put_blob(source)
-        attr = {
-            bs.BS_MODE: stat.S_IFLNK | 0755,
-            bs.BS_TYPE: 'blob',
-            bs.BS_REF: ref,
-            bs.BS_NAME: os.path.split(target)[1],
-        }
+        attr = {bs.BS_MODE: stat.S_IFLNK | 0755, bs.BS_TYPE: bs.BS_TYPE_BLOB,
+                bs.BS_REF: ref, bs.BS_NAME: os.path.split(target)[1]}
         self.rootref = bs.set_attr(self.rootref, target, attr)
 
     def truncate(self, path, length, fh=None):

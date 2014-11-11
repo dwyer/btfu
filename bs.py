@@ -92,7 +92,7 @@ def index_build(ref, dirpath='/'):
     for attr in get_tree(ref):
         attr[BS_NAME] = os.path.join(dirpath, attr[BS_NAME])
         print attr_to_str(attr)
-        if attr[BS_TYPE] == 'tree':
+        if attr[BS_TYPE] == BS_TYPE_TREE:
             index_build(attr[BS_REF], attr[BS_NAME])
 
 
@@ -176,21 +176,6 @@ def set_rootref(ref):
     f = open(ROOTREF_PATH, 'wb')
     f.write(ref)
     f.close()
-
-
-def tree_make(ref, path, mode):
-    newref = blobref('')
-    path, name = os.path.split(path)
-    if name in files_by_path(ref, path):
-        return None
-    i = 0
-    while name:
-        print i, path, name
-        path, name = os.path.split(path)
-        for attr in get_tree(ref, path):
-            print attr
-        i += 1
-    return ref
 
 
 def files_by_path(ref, path):
