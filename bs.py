@@ -98,7 +98,7 @@ def put_file(path, is_root=True):
             if fnmatch.fnmatch(name, glob):
                 return True
         return False
-    def tree_put(dirpath):
+    def put_tree(dirpath):
         ls = []
         for name in os.listdir(dirpath):
             if ignore(name):
@@ -121,7 +121,7 @@ def put_file(path, is_root=True):
         blob = f.read()
         f.close()
     else:
-        blob = tree_put(path)
+        blob = put_tree(path)
     ref = blobref_by_blob(blob)
     blobpath = os.path.join(BLOBPATH, ref)
     if not os.path.exists(blobpath):
