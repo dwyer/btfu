@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import errno
 import logging
 import os
@@ -15,13 +13,7 @@ import bs
 class BTFS(Operations):
 
     def __init__(self, rootref=None):
-        self.__rootref = rootref
-
-    @property
-    def rootref(self):
-        if self.__rootref is None:
-            self.__rootref = bs.get_rootref()
-        return self.__rootref
+        self.rootref = rootref
 
     def access(self, path, mode):
         print 'access', path, mode
@@ -119,7 +111,6 @@ class BTFS(Operations):
         print 'write', path, data, offset, fh
 
 
-if __name__ == '__main__':
-    mount_point = sys.argv[1]
+def mount(rootref, mountpoint):
     logging.getLogger().setLevel(logging.DEBUG)
-    fuse = FUSE(BTFS(), mount_point, foreground=True)
+    fuse = FUSE(BTFS(rootref), mountpoint, foreground=True)

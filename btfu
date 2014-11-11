@@ -32,6 +32,14 @@ def btfu_list(args):
     bs.index_build(args.ref)
 
 
+def btfu_mount(args):
+    try:
+        import fs
+        fs.mount(args.rootref or bs.get_rootref(), args.mountpoint)
+    except ImportError, e:
+        print >>sys.stderr, 'error: mount requires additional libraries:', e
+
+
 def btfu_rootref(args):
     print bs.get_rootref()
 
@@ -54,6 +62,11 @@ def main(args):
     subparser = subparsers.add_parser('list')
     subparser.set_defaults(func=btfu_list)
     subparser.add_argument('ref', nargs='?', default=None)
+    # mount
+    subparser = subparsers.add_parser('mount')
+    subparser.set_defaults(func=btfu_mount)
+    subparser.add_argument('mountpoint')
+    subparser.add_argument('rootref', nargs='?', default=None)
     # rootref
     subparser = subparsers.add_parser('rootref')
     subparser.set_defaults(func=btfu_rootref)
