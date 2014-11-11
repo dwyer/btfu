@@ -37,7 +37,6 @@ class BTFS(Operations):
         ref = self.fh_refs[fh] = bs.put_blob('')
         attr = {
             bs.BS_MODE: mode,
-            bs.BS_SIZE: 0,
             bs.BS_TYPE: 'blob',
             bs.BS_REF: ref,
             bs.BS_NAME: os.path.split(path)[-1],
@@ -56,7 +55,7 @@ class BTFS(Operations):
         attr = bs.get_attr(self.rootref, path)
         if not attr:
             raise FuseOSError(errno.ENOENT)
-        return attr
+        return dict(attr, st_size=bs.get_blobsize(attr[bs.BS_REF]))
 
     def getxattr(self, path, name, position=0):
         # print 'getxattr', path, name, position
@@ -71,7 +70,6 @@ class BTFS(Operations):
         ref = bs.put_blob('')
         attr = {
             bs.BS_MODE: mode,
-            bs.BS_SIZE: 0,
             bs.BS_TYPE: 'tree',
             bs.BS_REF: ref,
             bs.BS_NAME: os.path.split(path)[-1],
@@ -146,7 +144,6 @@ class BTFS(Operations):
         ref = bs.put_blob(source)
         attr = {
             bs.BS_MODE: stat.S_IFLNK | 0755,
-            bs.BS_SIZE: 0,
             bs.BS_TYPE: 'blob',
             bs.BS_REF: ref,
             bs.BS_NAME: os.path.split(target)[1],
@@ -158,7 +155,6 @@ class BTFS(Operations):
         attr = bs.get_attr(self.rootref, path)
         attr[bs.BS_REF] = \
             bs.put_blob(bs.get_blob(attr[bs.BS_REF], offset=length))
-        attr[bs.BS_SIZE] = length
         self.rootref = bs.set_attr(self.rootref, path, attr)
         if fh is not None:
             self.fh_refs[fh] = attr[bs.BS_REF]
@@ -179,7 +175,6 @@ class BTFS(Operations):
         print 'add blob', ref
         attr = self.getattr(path, fh)
         attr[bs.BS_REF] = ref
-        attr[bs.BS_SIZE] = bs.get_blobsize(ref)
         self.rootref = bs.set_attr(self.rootref, path, attr)
         print 'new root', self.rootref
         return len(data)

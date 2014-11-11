@@ -16,18 +16,17 @@ IGNORE_FILES = [
 ]
 
 BS_MODE = 'st_mode'
-BS_SIZE = 'st_size'
 BS_TYPE = 'bs_type'
 BS_REF = 'bs_ref'
 BS_NAME = 'bs_name'
-BS_ATTR_KEYS = [BS_MODE, BS_SIZE, BS_TYPE, BS_REF, BS_NAME]
+BS_ATTR_KEYS = [BS_MODE, BS_TYPE, BS_REF, BS_NAME]
 
 BS_TYPE_BLOB = 'blob'
 BS_TYPE_TREE = 'tree'
 
 
 def attr_to_str(attr):
-    return '%06o %d %s %s %s' % tuple(attr[key] for key in BS_ATTR_KEYS)
+    return '%06o %s %s %s' % tuple(attr[key] for key in BS_ATTR_KEYS)
 
 
 def blobref(blob):
@@ -84,7 +83,6 @@ def get_tree(ref, path=None):
     for line in get_blob(ref).splitlines():
         attr = dict(zip(BS_ATTR_KEYS, line.split()))
         attr[BS_MODE] = int(attr[BS_MODE], 8)
-        attr[BS_SIZE] = int(attr[BS_SIZE])
         yield attr
 
 
@@ -92,11 +90,10 @@ def index_build(ref, dirpath='/'):
     if dirpath == os.sep:
         print '040755 tree %s %s' % (ref, dirpath)
     for attr in get_tree(ref):
-        path = os.path.join(dirpath, attr[BS_NAME])
-        print '%06o %s %s %s' % (attr[BS_MODE], attr[BS_TYPE], attr[BS_REF],
-                                 path)
+        attr[BS_NAME] = os.path.join(dirpath, attr[BS_NAME])
+        print attr_to_str(attr)
         if attr[BS_TYPE] == 'tree':
-            index_build(attr[BS_REF], path)
+            index_build(attr[BS_REF], attr[BS_NAME])
 
 
 def init():
@@ -130,16 +127,16 @@ def put_file(path):
             if ignore(name):
                 continue
             path = os.path.join(dirpath, name)
-            ref = put_file(path)
-            if os.path.isfile(path) or os.path.islink(path):
-                typ = 'blob'
-            elif os.path.isdir(path):
-                typ = 'tree'
             st = os.lstat(path)
-            mod = '%06o' % st.st_mode
-            siz = str(st.st_size)
-            ls.append((mod, siz, typ, ref, name))
-        return '\n'.join(' '.join(x) for x in ls)
+            attr = {
+                BS_MODE: st.st_mode,
+                BS_REF: put_file(path),
+                BS_TYPE: (BS_TYPE_BLOB if os.path.isfile(path) or
+                          os.path.islink(path) else BS_TYPE_TREE),
+                BS_NAME: name,
+            }
+            ls.append(attr_to_str(attr))
+        return '\n'.join(ls)
     if os.path.islink(path):
         blob = os.readlink(path)
     elif os.path.isfile(path):
