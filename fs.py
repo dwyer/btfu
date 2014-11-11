@@ -126,7 +126,11 @@ class BTFS(Operations):
 
     def rmdir(self, path):
         # print 'rmdir', path
-        pass
+        attr = bs.get_attr(self.rootref, path)
+        if bs.get_blobsize(attr[bs.BS_REF]):
+            raise FuseOSError(errno.ENOTEMPTY)
+        del attr[bs.BS_REF]
+        self.rootref = bs.set_attr(self.rootref, path, attr)
 
     def statfs(self, path):
         # print 'statfs', path
