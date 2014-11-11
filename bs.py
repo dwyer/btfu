@@ -43,13 +43,8 @@ def attr_by_path(ref, path):
     return attr_by_name(ref, name)
 
 
-def blob_by_ref(ref):
-    with open(blob_path_by_ref(ref), 'rb') as f:
-        return f.read()
-
-
 def blob_by_path(ref, path):
-    return blob_by_ref(blobref_by_path(ref, path))
+    return get_blob(blobref_by_path(ref, path))
 
 
 def blobref(blob):
@@ -72,6 +67,11 @@ def blobref_by_path(ref, path):
 
 def blob_path_by_ref(ref):
     return os.path.join(BLOBPATH, ref)
+
+
+def get_blob(ref):
+    with open(blob_path_by_ref(ref), 'rb') as f:
+        return f.read()
 
 
 def index_build(ref, dirpath='/'):
@@ -151,7 +151,7 @@ def tree_by_path(ref, path):
 
 def tree_by_ref(ref):
     keys = ['mod', 'siz', 'typ', 'ref', 'nam']
-    for line in blob_by_ref(ref).splitlines():
+    for line in get_blob(ref).splitlines():
         yield dict(zip(keys, line.split()))
 
 
