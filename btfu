@@ -28,12 +28,12 @@ def btfu_init(args):
 
 def btfu_list(args):
     if args.ref is None:
-        args.ref = bs.rootref()
+        args.ref = bs.get_rootref()
     bs.index_build(args.ref)
 
 
 def btfu_rootref(args):
-    print bs.rootref()
+    print bs.get_rootref()
 
 
 def main(args):

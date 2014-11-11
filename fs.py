@@ -20,7 +20,7 @@ class BTFS(Operations):
     @property
     def rootref(self):
         if self.__rootref is None:
-            self.__rootref = bs.rootref()
+            self.__rootref = bs.get_rootref()
         return self.__rootref
 
     def access(self, path, mode):

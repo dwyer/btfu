@@ -72,6 +72,11 @@ def get_blobpath(ref):
     return os.path.join(BLOBPATH, ref)
 
 
+def get_rootref():
+    with open(ROOTREF_PATH, 'rb') as f:
+        return f.read()
+
+
 def get_tree(ref, path=None):
     if path is not None:
         ref = blobref_by_path(ref, path)
@@ -144,11 +149,6 @@ def put_file(path, is_root=True):
         f.write(ref)
         f.close()
     return ref
-
-
-def rootref():
-    with open(ROOTREF_PATH, 'rb') as f:
-        return f.read()
 
 
 def tree_make(ref, path, mode):
