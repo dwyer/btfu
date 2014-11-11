@@ -68,8 +68,16 @@ class BTFS(Operations):
 
     def mkdir(self, path, mode):
         # print 'mkdir', path, mode
-        ref = bs.tree_make(self.rootref, path, mode)
-        self.rootref = ref or self.rootref
+        ref = bs.put_blob('')
+        dirpath, filename = os.path.split(path)
+        attr = {
+            bs.BS_MODE: mode,
+            bs.BS_SIZE: 0,
+            bs.BS_TYPE: 'tree',
+            bs.BS_REF: ref,
+            bs.BS_NAME: filename,
+        }
+        self.rootref = bs.set_attr(self.rootref, path, attr)
 
     def open(self, path, flags):
         # TODO: If the write flag is set, open a temporary copy.
@@ -80,7 +88,7 @@ class BTFS(Operations):
         return self.fh
 
     def read(self, path, size, offset, fh):
-        print 'read', path, size, offset, fh
+        # print 'read', path, size, offset, fh
         return bs.get_blob(self.fh_refs[fh], size=size, offset=offset)
 
     def readdir(self, path, fh):
