@@ -131,11 +131,13 @@ class BTFS(Operations):
 
     def truncate(self, path, length, fh=None):
         print 'truncate', path, length, fh
-        if fh is None:
-            raise NotImplementedError('truncate without fh not implemented')
-        ref = self.fh_refs[fh]
-        blob = bs.get_blob(ref, offset=length)
-        self.fh_refs[fh] = bs.put_blob(blob)
+        attr = bs.get_attr(self.rootref, path)
+        attr[bs.BS_REF] = \
+            bs.put_blob(bs.get_blob(attr[bs.BS_REF], offset=length))
+        attr[bs.BS_SIZE] = length
+        self.rootref = bs.set_attr(self.rootref, path, attr)
+        if fh is not None:
+            self.fh_refs[fh] = attr[bs.BS_REF]
 
     def unlink(self, path):
         # print 'unlink', path
