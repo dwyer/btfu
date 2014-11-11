@@ -15,27 +15,28 @@ IGNORE_FILES = [
     '*.pyc',
 ]
 
-
-def attr_by_name(ref, name):
-    # TODO: move this over to fs.py
-    for obj in get_tree(ref):
-        if name == obj['nam']:
-            attr = dict(
-                st_mode=(int(obj['mod'], 8)),
-                st_nlink=1, # TODO: make this meaningful
-            )
-            if obj['typ'] == 'tree':
-                attr['st_nlink'] += 1
-            attr['st_size'] = int(obj['siz'])
-            return attr
-    return {}
+BS_MODE = 'st_mode'
+BS_SIZE = 'st_size'
+BS_TYPE = 'bs_type'
+BS_REF = 'bs_ref'
+BS_NAME = 'bs_name'
+BS_ATTR_KEYS = [BS_MODE, BS_SIZE, BS_TYPE, BS_REF, BS_NAME]
 
 
 def attr_by_path(ref, path):
-    # TODO: move this over to fs.py
     path, name = os.path.split(path)
     ref = blobref_by_path(ref, path)
-    return attr_by_name(ref, name)
+    for attr in get_tree(ref):
+        if name == attr[BS_NAME]:
+            st_nlink = 1 # TODO: make this meaningful
+            if attr[BS_TYPE] == 'tree':
+                st_nlink += 1
+            return dict(attr, st_nlink=st_nlink)
+    return {}
+
+
+def attr_to_str(attr):
+    print '%06o %d %s %s %s' % (attr[key] for key in BS_ATTR_KEYS)
 
 
 def blobref(blob):
@@ -51,8 +52,8 @@ def blobref_by_path(ref, path):
         return blobref_by_path(ref, path)
     name = path.pop(0)
     for obj in get_tree(ref):
-        if obj['nam'] == name:
-            return blobref_by_path(obj['ref'], path)
+        if obj[BS_NAME] == name:
+            return blobref_by_path(obj[BS_REF], path)
     return ref
 
 
@@ -80,19 +81,22 @@ def get_rootref():
 def get_tree(ref, path=None):
     if path is not None:
         ref = blobref_by_path(ref, path)
-    keys = ['mod', 'siz', 'typ', 'ref', 'nam']
     for line in get_blob(ref).splitlines():
-        yield dict(zip(keys, line.split()))
+        attr = dict(zip(BS_ATTR_KEYS, line.split()))
+        attr[BS_MODE] = int(attr[BS_MODE], 8)
+        attr[BS_SIZE] = int(attr[BS_SIZE])
+        yield attr
 
 
 def index_build(ref, dirpath='/'):
     if dirpath == os.sep:
         print '040755 tree %s %s' % (ref, dirpath)
     for attr in get_tree(ref):
-        path = os.path.join(dirpath, attr['nam'])
-        print '%s %s %s %s' % (attr['mod'], attr['typ'], attr['ref'], path)
-        if attr['typ'] == 'tree':
-            index_build(attr['ref'], path)
+        path = os.path.join(dirpath, attr[BS_NAME])
+        print '%06o %s %s %s' % (attr[BS_MODE], attr[BS_TYPE], attr[BS_REF],
+                                 path)
+        if attr[BS_TYPE] == 'tree':
+            index_build(attr[BS_REF], path)
 
 
 def init():
@@ -147,6 +151,33 @@ def put_file(path):
     return put_blob(blob)
 
 
+def set_attr(rootref, path, attr):
+    if path == os.sep:
+        return ref
+    dirpath, filename = os.path.split(path)
+    exists = False
+    tree = []
+    for row in get_tree(rootref, dirpath):
+        if row[BS_NAME] == filename:
+            tree.append(dict(
+                mod=oct(attr[BS_MODE]),
+                siz=str(attr[BS_SIZE]),
+                typ=row[BS_TYPE],
+                ref=attr[BS_REF],
+                nam=row[BS_NAME],
+            ))
+            exists = True
+        else:
+            tree.append(row)
+    if not exists:
+        # TODO: handle non-existance
+        return rootref
+    blob = '\n'.join(' '.join((attr[BS_MODE], attr[BS_SIZE], attr[BS_TYPE],
+                               attr[BS_REF], attr[BS_NAME])) for attr in tree)
+    ref = put_blob(blob)
+    return set_fileref(rootref, dirpath, ref)
+
+
 def set_fileref(rootref, path, ref):
     if path == os.sep:
         return ref
@@ -154,16 +185,16 @@ def set_fileref(rootref, path, ref):
     tree = list(get_tree(rootref, dirpath))
     exists = False
     for attr in tree:
-        if attr['nam'] == filename:
-            attr['ref'] = ref
-            attr['siz'] = str(get_blobsize(ref))
+        if attr[BS_NAME] == filename:
+            attr[BS_REF] = ref
+            attr[BS_SIZE] = str(get_blobsize(ref))
             exists = True
             break
     if not exists:
         # TODO: handle non-existance
         return rootref
-    blob = '\n'.join(' '.join((attr['mod'], attr['siz'], attr['typ'],
-                               attr['ref'], attr['nam'])) for attr in tree)
+    blob = '\n'.join(' '.join((attr[BS_MODE], attr[BS_SIZE], attr[BS_TYPE],
+                               attr[BS_REF], attr[BS_NAME])) for attr in tree)
     ref = put_blob(blob)
     return set_fileref(rootref, dirpath, ref)
 
@@ -190,4 +221,4 @@ def tree_make(ref, path, mode):
 
 
 def files_by_path(ref, path):
-    return [row['nam'] for row in get_tree(ref, path)]
+    return [row[BS_NAME] for row in get_tree(ref, path)]

@@ -145,7 +145,10 @@ class BTFS(Operations):
         ref = self.fh_refs[fh] = bs.put_blob(
             bs.get_blob(self.fh_refs[fh], size=offset) + data)
         print 'add blob', ref
-        self.rootref = bs.set_fileref(self.rootref, path, ref)
+        attr = self.getattr(path, fh)
+        attr[bs.BS_REF] = ref
+        attr[bs.BS_SIZE] = bs.get_blobsize(ref)
+        self.rootref = bs.set_attr(self.rootref, path, attr)
         print 'new root', self.rootref
         return len(data)
 
