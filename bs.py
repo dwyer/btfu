@@ -172,7 +172,9 @@ def set_attr(rootref, path, new_attr):
     ref = put_blob('\n'.join(attr_to_str(attr) for attr in tree))
     if dirpath == os.sep:
         return ref
-    return set_attr(rootref, dirpath, get_attr(rootref, dirpath))
+    attr = get_attr(rootref, dirpath)
+    attr[BS_REF] = ref
+    return set_attr(rootref, dirpath, attr)
 
 
 def set_rootref(ref):
