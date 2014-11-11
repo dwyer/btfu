@@ -19,7 +19,7 @@ IGNORE_FILES = [
 
 def attr_by_name(ref, name):
     # TODO: move this over to fs.py
-    for obj in tree_by_ref(ref):
+    for obj in get_tree(ref):
         now = time.time()
         if name == obj['nam']:
             attr = dict(
@@ -59,7 +59,7 @@ def blobref_by_path(ref, path):
         path = path.split(os.sep) if path else []
         return blobref_by_path(ref, path)
     name = path.pop(0)
-    for obj in tree_by_ref(ref):
+    for obj in get_tree(ref):
         if obj['nam'] == name:
             return blobref_by_path(obj['ref'], path)
     return ref
@@ -74,10 +74,16 @@ def get_blob(ref):
         return f.read()
 
 
+def get_tree(ref):
+    keys = ['mod', 'siz', 'typ', 'ref', 'nam']
+    for line in get_blob(ref).splitlines():
+        yield dict(zip(keys, line.split()))
+
+
 def index_build(ref, dirpath='/'):
     if dirpath == os.sep:
         print '040755 tree %s %s' % (ref, dirpath)
-    for attr in tree_by_ref(ref):
+    for attr in get_tree(ref):
         path = os.path.join(dirpath, attr['nam'])
         print '%s %s %s %s' % (attr['mod'], attr['typ'], attr['ref'], path)
         if attr['typ'] == 'tree':
@@ -146,13 +152,7 @@ def rootref():
 
 
 def tree_by_path(ref, path):
-    return tree_by_ref(blobref_by_path(ref, path))
-
-
-def tree_by_ref(ref):
-    keys = ['mod', 'siz', 'typ', 'ref', 'nam']
-    for line in get_blob(ref).splitlines():
-        yield dict(zip(keys, line.split()))
+    return get_tree(blobref_by_path(ref, path))
 
 
 def tree_make(ref, path, mode):
