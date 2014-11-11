@@ -33,7 +33,7 @@ def btfu_list(args):
 
 
 def btfu_rootref(args):
-    print # rootref
+    print bs.rootref()
 
 
 def main(args):
@@ -53,7 +53,7 @@ def main(args):
     subparser = subparsers.add_parser('list')
     subparser.set_defaults(func=btfu_list)
     subparser.add_argument('ref', nargs='?', default=None)
-    # root
+    # rootref
     subparser = subparsers.add_parser('rootref')
     subparser.set_defaults(func=btfu_rootref)
     # ...
