@@ -4,6 +4,7 @@ import argparse
 import getpass
 import os
 import sys
+import time
 
 import bs
 
@@ -15,9 +16,20 @@ import bs
 def btfu_add(args):
     # FIXME: right now `add` just rebuilds the entire root tree. It should be
     # able to add a single file and simply rebuild its parent branches.
-    ref = bs.put_file('.')
-    bs.set_rootref(ref)
-    print ref
+    rootref = bs.get_rootref()
+    treeref = bs.put_file('.')
+    ls = [[bs.BS_TYPE_TREE, treeref]]
+    if rootref is not None:
+        root = bs.get_root(rootref)
+        if root.get(bs.BS_TYPE_TREE, None) == treeref:
+            print rootref
+            return
+    if rootref is not None:
+        ls.append([bs.BS_TYPE_PARENT, rootref])
+    ls.append([bs.BS_TYPE_CTIME, str(time.time())])
+    rootref = bs.put_blob('\n'.join(' '.join(pair) for pair in ls))
+    bs.set_rootref(rootref)
+    print rootref
 
 
 def btfu_get(args):
@@ -30,14 +42,14 @@ def btfu_init(args):
 
 def btfu_list(args):
     if args.ref is None:
-        args.ref = bs.get_rootref()
+        args.ref = bs.get_root()[bs.BS_TYPE_TREE]
     bs.index_build(args.ref)
 
 
 def btfu_mount(args):
     try:
         import fs
-        fs.mount(args.rootref or bs.get_rootref(), args.mountpoint)
+        fs.mount(bs.get_root(args.rootref)[bs.BS_TYPE_TREE], args.mountpoint)
     except ImportError, e:
         print >>sys.stderr, 'error: mount requires additional libraries:', e
 
@@ -75,7 +87,7 @@ def main(args):
     subparser = subparsers.add_parser('mount')
     subparser.set_defaults(func=btfu_mount)
     subparser.add_argument('mountpoint')
-    subparser.add_argument('rootref', nargs='?')
+    subparser.add_argument('treeref', nargs='?')
     # put
     subparser = subparsers.add_parser('put')
     subparser.set_defaults(func=btfu_put)

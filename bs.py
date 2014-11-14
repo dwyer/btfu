@@ -23,6 +23,8 @@ BS_ATTR_KEYS = [BS_MODE, BS_TYPE, BS_REF, BS_NAME]
 
 BS_TYPE_BLOB = 'blob'
 BS_TYPE_TREE = 'tree'
+BS_TYPE_PARENT = 'parent'
+BS_TYPE_CTIME = 'ctime'
 
 
 def attr_to_str(attr):
@@ -72,7 +74,16 @@ def get_blobsize(ref):
     return os.stat(get_blobpath(ref)).st_size
 
 
+def get_root(ref=None):
+    if ref is None:
+        ref = get_rootref()
+    blob = get_blob(ref)
+    return dict(line.split() for line in blob.split('\n'))
+
+
 def get_rootref():
+    if not os.path.exists(ROOTREF_PATH):
+        return None
     with open(ROOTREF_PATH, 'rb') as f:
         return f.read()
 
