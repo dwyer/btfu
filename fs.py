@@ -6,7 +6,9 @@ import sys
 
 from fuse import FUSE, FuseOSError, Operations
 
-import bs
+from bs import FileStore
+
+bs = FileStore()
 
 
 class BTFS(Operations):
@@ -25,7 +27,7 @@ class BTFS(Operations):
     def chmod(self, path, mode):
         # print 'chmod', path, mode
         attr = bs.get_attr(self.rootref, path)
-        attr[bs.BS_MODE] = mode
+        attr[bs.MODE] = mode
         self.rootref = bs.set_attr(self.rootref, path, attr)
         return 0
 
@@ -38,8 +40,8 @@ class BTFS(Operations):
         self.fh += 1
         fh = self.fh
         ref = self.fh_refs[fh] = bs.put_blob('')
-        attr = {bs.BS_MODE: mode, bs.BS_TYPE: bs.BS_TYPE_BLOB, bs.BS_REF: ref,
-                bs.BS_NAME: os.path.split(path)[-1]}
+        attr = {bs.MODE: mode, bs.TYPE: bs.TYPE_BLOB, bs.REF: ref,
+                bs.NAME: os.path.split(path)[-1]}
         self.rootref = bs.set_attr(self.rootref, path, attr)
         return fh
 
@@ -54,7 +56,7 @@ class BTFS(Operations):
         attr = bs.get_attr(self.rootref, path)
         if not attr:
             raise FuseOSError(errno.ENOENT)
-        return dict(attr, st_size=bs.get_blobsize(attr[bs.BS_REF]))
+        return dict(attr, st_size=bs.get_blobsize(attr[bs.REF]))
 
     def getxattr(self, path, name, position=0):
         # print 'getxattr', path, name, position
@@ -67,8 +69,8 @@ class BTFS(Operations):
     def mkdir(self, path, mode):
         # print 'mkdir', path, mode
         ref = bs.put_blob('')
-        attr = {bs.BS_MODE: mode, bs.BS_TYPE: bs.BS_TYPE_TREE, bs.BS_REF: ref,
-                bs.BS_NAME: os.path.split(path)[-1]}
+        attr = {bs.MODE: mode, bs.TYPE: bs.TYPE_TREE, bs.REF: ref,
+                bs.NAME: os.path.split(path)[-1]}
         self.rootref = bs.set_attr(self.rootref, path, attr)
 
     def open(self, path, flags):
@@ -106,12 +108,12 @@ class BTFS(Operations):
         old_dirpath, old_filename = os.path.split(old)
         new_dirpath, new_filename = os.path.split(new)
         if old_dirpath == new_dirpath:
-            attr[bs.BS_NAME] = new_filename
+            attr[bs.NAME] = new_filename
             self.rootref = bs.set_attr(self.rootref, old, attr)
             return
         new_attr = dict(attr)
-        new_attr[bs.BS_NAME] = new_filename
-        del attr[bs.BS_REF]
+        new_attr[bs.NAME] = new_filename
+        del attr[bs.REF]
         # TODO: try to do this without rebuilding the tree twice.
         self.rootref = bs.set_attr(self.rootref, old, attr)
         self.rootref = bs.set_attr(self.rootref, new, new_attr)
@@ -119,9 +121,9 @@ class BTFS(Operations):
     def rmdir(self, path):
         # print 'rmdir', path
         attr = bs.get_attr(self.rootref, path)
-        if bs.get_blobsize(attr[bs.BS_REF]):
+        if bs.get_blobsize(attr[bs.REF]):
             raise FuseOSError(errno.ENOTEMPTY)
-        del attr[bs.BS_REF]
+        del attr[bs.REF]
         self.rootref = bs.set_attr(self.rootref, path, attr)
 
     def statfs(self, path):
@@ -137,22 +139,22 @@ class BTFS(Operations):
         # file.
         # print 'symlink', target, source
         ref = bs.put_blob(source)
-        attr = {bs.BS_MODE: stat.S_IFLNK | 0755, bs.BS_TYPE: bs.BS_TYPE_BLOB,
-                bs.BS_REF: ref, bs.BS_NAME: os.path.split(target)[1]}
+        attr = {bs.MODE: stat.S_IFLNK | 0755, bs.TYPE: bs.TYPE_BLOB,
+                bs.REF: ref, bs.NAME: os.path.split(target)[1]}
         self.rootref = bs.set_attr(self.rootref, target, attr)
 
     def truncate(self, path, length, fh=None):
         print 'truncate', path, length, fh
         attr = bs.get_attr(self.rootref, path)
-        attr[bs.BS_REF] = \
-            bs.put_blob(bs.get_blob(attr[bs.BS_REF], size=length))
+        attr[bs.REF] = \
+            bs.put_blob(bs.get_blob(attr[bs.REF], size=length))
         self.rootref = bs.set_attr(self.rootref, path, attr)
         if fh is not None:
-            self.fh_refs[fh] = attr[bs.BS_REF]
+            self.fh_refs[fh] = attr[bs.REF]
 
     def unlink(self, path):
         attr = bs.get_attr(self.rootref, path)
-        del attr[bs.BS_REF]
+        del attr[bs.REF]
         self.rootref = bs.set_attr(self.rootref, path, attr)
 
     def utimens(self, path, times=None):
@@ -164,7 +166,7 @@ class BTFS(Operations):
         ref = self.fh_refs[fh] = bs.put_blob(
             bs.get_blob(self.fh_refs[fh], size=offset) + data)
         attr = self.getattr(path, fh)
-        attr[bs.BS_REF] = ref
+        attr[bs.REF] = ref
         self.rootref = bs.set_attr(self.rootref, path, attr)
         return len(data)
 

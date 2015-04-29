@@ -1,0 +1,3 @@
+~/.btfu/
+    blobs/sha1/xx/xx/xxx...     blob content
+    roots/uuid4/xxx...          blobref to root head

@@ -7,108 +7,171 @@ import os
 import sys
 import time
 
-import bs
+from bs import FileStore
 
-# import gnupg
-# gpg = gnupg.GPG('/usr/local/bin/gpg',
-#                 homedir=os.path.join(os.environ.get('HOME'), '.gnupg'))
+bs = FileStore()
 
 
-def btfu_add(args):
+def get_rootref():
+    try:
+        with open('.btfu') as fp:
+            return fp.read()
+    except IOError:
+        return None
+
+
+def set_rootref(ref):
+    with open('.btfu', 'wb') as fp:
+        fp.write(ref)
+
+
+def btfu_checkout(args):
+    """Copy the current root into the current working directory."""
+    def loop(treeref, dirname='.'):
+        for attr in bs.get_tree(treeref):
+            # print attr
+            path = os.path.join(dirname, attr['bs_name'])
+            if attr['bs_type'] == 'blob':
+                with open(path, 'wb') as fp:
+                    fp.write(bs.get_blob(attr['bs_ref']))
+                os.chmod(path, attr['st_mode'])
+            elif attr['bs_type'] == 'tree':
+                if not os.path.exists(path):
+                    os.mkdir(path)
+                os.chmod(path, attr['st_mode'])
+                loop(attr['bs_ref'], path)
+    if os.path.exists(args.dest):
+        print 'destination %s already exists' % args.dest
+        exit(1)
+    try:
+        os.mkdir(args.dest)
+    except IOError, e:
+        print e
+        exit(1)
+    loop(args.treeref, args.dest)
+
+
+def btfu_commit(args):
+    """Add the working directory tree and create a root reference."""
     # FIXME: right now `add` just rebuilds the entire root tree. It should be
     # able to add a single file and simply rebuild its parent branches.
-    rootref = bs.get_rootref()
+    rootref = get_rootref()
     treeref = bs.put_file('.')
-    ls = [[bs.BS_TYPE_TREE, treeref]]
+    ls = [[bs.TYPE_TREE, treeref]]
     if rootref is not None:
         root = bs.get_root(rootref)
-        if root.get(bs.BS_TYPE_TREE, None) == treeref:
+        if root.get(bs.TYPE_TREE, None) == treeref:
             print rootref
             return
     if rootref is not None:
-        ls.append([bs.BS_TYPE_PARENT, rootref])
-    ls.append([bs.BS_TYPE_CTIME, str(time.time())])
+        ls.append([bs.TYPE_PARENT, rootref])
+    ls.append([bs.TYPE_CTIME, str(time.time())])
     rootref = bs.put_blob('\n'.join(' '.join(pair) for pair in ls))
-    bs.set_rootref(rootref)
+    set_rootref(rootref)
     print rootref
 
 
 def btfu_get(args):
+    """Print a blob to stdout."""
     print bs.get_blob(args.ref),
 
 
 def btfu_hist(args):
-    rootref = bs.get_rootref()
+    """Display the history of the given root."""
+    rootref = get_rootref()
     while rootref is not None:
         root = bs.get_root(rootref)
-        print rootref, (datetime.datetime.
-                        fromtimestamp(float(root[bs.BS_TYPE_CTIME]))
+        print rootref, (datetime.datetime
+                        .fromtimestamp(float(root[bs.TYPE_CTIME]))
                         .strftime('%Y-%m-%d %H:%M:%S'))
-        rootref = root.get(bs.BS_TYPE_PARENT)
-
-
-def btfu_init(args):
-    bs.init()
+        rootref = root.get(bs.TYPE_PARENT)
 
 
 def btfu_list(args):
-    if args.ref is None:
-        args.ref = bs.get_root()[bs.BS_TYPE_TREE]
-    bs.index_build(args.ref)
+    """Display a list of files in the current root."""
+    def index_build(treeref, dirpath=os.sep):
+        if dirpath == os.sep:
+            print '040755 tree %s %s' % (treeref, dirpath)
+        for attr in bs.get_tree(treeref):
+            attr[bs.NAME] = os.path.join(dirpath, attr[bs.NAME])
+            print bs.attr_to_str(attr)
+            if attr[bs.TYPE] == bs.TYPE_TREE:
+                index_build(attr[bs.REF], attr[bs.NAME])
+    if args.treeref is None:
+        rootref = get_rootref()
+        root = bs.get_root(rootref)
+        args.treeref = root[bs.TYPE_TREE]
+    index_build(args.treeref)
 
 
 def btfu_mount(args):
+    """Mount the given tree."""
     try:
         import fs
-        fs.mount(bs.get_root(args.rootref)[bs.BS_TYPE_TREE], args.mountpoint)
+        if args.treeref is None:
+            args.treeref = bs.get_root(get_rootref())[bs.TYPE_TREE]
+        fs.mount(args.treeref, args.mountpoint)
     except ImportError, e:
         print >>sys.stderr, 'error: mount requires additional libraries:', e
 
 
 def btfu_put(args):
+    """Put a blob in the blobstore."""
     if args.path is None:
         print bs.put_blob(sys.stdin.read())
     else:
         print bs.put_file(args.path)
 
 
-def btfu_rootref(args):
-    print bs.get_rootref()
+def btfu_roots(args):
+    """Show a list of all the archived roots."""
+    for root in bs.get_roots():
+        print root
+
+
+def btfu_setup(args):
+    """Set up the blobstore."""
+    bs.setup()
 
 
 def main(args):
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
-    # add
-    subparser = subparsers.add_parser('add')
-    subparser.set_defaults(func=btfu_add)
+    # put
+    subparser = subparsers.add_parser('put', help=btfu_put.__doc__)
+    subparser.set_defaults(func=btfu_put)
+    subparser.add_argument('path', nargs='?')
     # get
-    subparser = subparsers.add_parser('get')
+    subparser = subparsers.add_parser('get', help=btfu_get.__doc__)
     subparser.set_defaults(func=btfu_get)
     subparser.add_argument('ref')
+    # commit
+    subparser = subparsers.add_parser('commit', help=btfu_commit.__doc__)
+    subparser.set_defaults(func=btfu_commit)
+    # checkout
+    subparser = subparsers.add_parser('checkout', help=btfu_checkout.__doc__)
+    subparser.set_defaults(func=btfu_checkout)
+    subparser.add_argument('treeref')
+    subparser.add_argument('dest')
     # hist
-    subparser = subparsers.add_parser('hist')
+    subparser = subparsers.add_parser('hist', help=btfu_hist.__doc__)
     subparser.set_defaults(func=btfu_hist)
-    # init
-    # TODO: make this automatic
-    subparser = subparsers.add_parser('init')
-    subparser.set_defaults(func=btfu_init)
     # list
-    subparser = subparsers.add_parser('list')
+    subparser = subparsers.add_parser('list', help=btfu_list.__doc__)
     subparser.set_defaults(func=btfu_list)
-    subparser.add_argument('ref', nargs='?')
+    subparser.add_argument('treeref', nargs='?')
     # mount
-    subparser = subparsers.add_parser('mount')
+    subparser = subparsers.add_parser('mount', help=btfu_mount.__doc__)
     subparser.set_defaults(func=btfu_mount)
     subparser.add_argument('mountpoint')
     subparser.add_argument('treeref', nargs='?')
-    # put
-    subparser = subparsers.add_parser('put')
-    subparser.set_defaults(func=btfu_put)
-    subparser.add_argument('path', nargs='?')
-    # rootref
-    subparser = subparsers.add_parser('rootref')
-    subparser.set_defaults(func=btfu_rootref)
+    # roots
+    subparser = subparsers.add_parser('roots', help=btfu_roots.__doc__)
+    subparser.set_defaults(func=btfu_roots)
+    # setup
+    # TODO: make this automatic
+    subparser = subparsers.add_parser('setup', help=btfu_setup.__doc__)
+    subparser.set_defaults(func=btfu_setup)
     # ...
     args = parser.parse_args(args)
     func = args.func

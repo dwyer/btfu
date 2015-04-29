@@ -1,193 +1,194 @@
+import distutils.dir_util
 import fnmatch
 import hashlib
 import os
 import stat
+import uuid
+
+BLOBSTORE_NAME = '.btfu'
+HOME_DIR = os.environ['HOME']
 
 
-REPONAME = '.btfu'
-REPOPATH = os.path.join('.', REPONAME)
-BLOBPATH = os.path.join(REPOPATH, 'blobs')
-ROOTREF_PATH = os.path.join(REPOPATH, 'root')
+class BlobStore(object):
 
-IGNORE_FILES = [
-    REPONAME,
-    '.git',
-    '*.pyc',
-]
+    def __init__(self):
+        self.repo_path = os.path.join(HOME_DIR, BLOBSTORE_NAME)
+        self.blobs_path = os.path.join(self.repo_path, 'blobs')
+        self.roots_path = os.path.join(self.repo_path, 'roots')
 
-BS_MODE = 'st_mode'
-BS_TYPE = 'bs_type'
-BS_REF = 'bs_ref'
-BS_NAME = 'bs_name'
-BS_ATTR_KEYS = [BS_MODE, BS_TYPE, BS_REF, BS_NAME]
+    def blobref(self, blob):
+        return 'sha1-%s' % hashlib.sha1(blob).hexdigest()
 
-BS_TYPE_BLOB = 'blob'
-BS_TYPE_TREE = 'tree'
-BS_TYPE_PARENT = 'parent'
-BS_TYPE_CTIME = 'ctime'
+    def get_blob(self, ref, path=None, size=-1, offset=0):
+        if path is not None:
+            ref = self.blobref_by_path(ref, path)
+        with open(self.get_blobpath(ref), 'rb') as f:
+            f.seek(offset)
+            return f.read(size)
 
+    def get_blobpath(self, ref, split=False):
+        a, b = ref.split('-', 1)
+        return os.path.join(self.blobs_path, a, b[0:2], b[2:4], b[4:])
 
-def attr_to_str(attr):
-    return '%06o %s %s %s' % tuple(attr[key] for key in BS_ATTR_KEYS)
+    def get_blobsize(self, ref):
+        return os.stat(self.get_blobpath(ref)).st_size
 
-
-def blobref(blob):
-    return 'sha1-%s' % hashlib.sha1(blob).hexdigest()
-
-
-def blobref_by_path(ref, path):
-    if not path:
+    def put_blob(self, blob):
+        ref = self.blobref(blob)
+        blobpath = self.get_blobpath(ref)
+        if not os.path.exists(blobpath):
+            distutils.dir_util.mkpath(os.path.dirname(blobpath))
+            with open(blobpath, 'wb') as f:
+                f.write(blob)
+            os.chmod(blobpath, 0400)
         return ref
-    if isinstance(path, basestring):
-        path = path[1:]
-        path = path.split(os.sep) if path else []
-        return blobref_by_path(ref, path)
-    name = path.pop(0)
-    for obj in get_tree(ref):
-        if obj[BS_NAME] == name:
-            return blobref_by_path(obj[BS_REF], path)
-    return ref
+
+    def setup(self):
+        try:
+            os.mkdir(self.repo_path)
+            os.mkdir(self.blobs_path)
+            os.mkdir(self.roots_path)
+        except OSError, e:
+            print e
 
 
-def get_attr(ref, path):
-    path, name = os.path.split(path)
-    ref = blobref_by_path(ref, path)
-    for attr in get_tree(ref):
-        if name == attr[BS_NAME]:
-            return attr
-    return None
+class CloudStore(BlobStore):
+
+    def __init__(self):
+        super(CloudStore, self).__init__()
+        self.gpg = gnupg.GPG(
+            '/usr/local/bin/gpg', gnupghome=os.path.join(HOME_DIR, '.gnupg'))
+
+    def decrypt(self, blob):
+        return str(self.gpg.decrypt(blob, passphrase=os.environ['BTFU_PASS']))
+
+    def encrypt(self, blob):
+        return str(self.gpg.encrypt(blob, self.key_id, armor=False))
 
 
-def get_blob(ref, path=None, size=-1, offset=0):
-    if path is not None:
-        ref = blobref_by_path(ref, path)
-    with open(get_blobpath(ref), 'rb') as f:
-        f.seek(offset)
-        return f.read(size)
+class FileStore(BlobStore):
 
+    MODE = 'st_mode'
+    TYPE = 'bs_type'
+    REF = 'bs_ref'
+    NAME = 'bs_name'
 
-def get_blobpath(ref):
-    return os.path.join(BLOBPATH, ref)
+    TYPE_BLOB = 'blob'
+    TYPE_TREE = 'tree'
+    TYPE_PARENT = 'root'
+    TYPE_CTIME = 'ctime'
 
+    def __init__(self, root_name='.'):
+        super(FileStore, self).__init__()
+        self.root_path = os.path.abspath(root_name)
+        self.ATTR_KEYS = [self.MODE, self.TYPE, self.REF, self.NAME]
+        self.key_id = ''
+        self.__ignore_patterns = None
 
-def get_blobsize(ref):
-    return os.stat(get_blobpath(ref)).st_size
+    def attr_to_str(self, attr):
+        return '%06o %s %s %s' % tuple(attr[key] for key in self.ATTR_KEYS)
 
+    def blobref_by_path(self, ref, path):
+        if not path:
+            return ref
+        if isinstance(path, basestring):
+            path = path[1:]
+            path = path.split(os.sep) if path else []
+            return self.blobref_by_path(ref, path)
+        name = path.pop(0)
+        for obj in self.get_tree(ref):
+            if obj[self.NAME] == name:
+                return self.blobref_by_path(obj[self.REF], path)
+        return ref
 
-def get_root(ref=None):
-    if ref is None:
-        ref = get_rootref()
-    blob = get_blob(ref)
-    return dict(line.split() for line in blob.split('\n'))
-
-
-def get_rootref():
-    if not os.path.exists(ROOTREF_PATH):
+    def get_attr(self, ref, path):
+        path, name = os.path.split(path)
+        ref = self.blobref_by_path(ref, path)
+        for attr in self.get_tree(ref):
+            if name == attr[self.NAME]:
+                return attr
         return None
-    with open(ROOTREF_PATH, 'rb') as f:
-        return f.read()
 
+    def get_root(self, ref):
+        blob = self.get_blob(ref)
+        return dict(line.split() for line in blob.split('\n'))
 
-def get_tree(ref, path=None):
-    if path is not None:
-        ref = blobref_by_path(ref, path)
-    for line in get_blob(ref).splitlines():
-        attr = dict(zip(BS_ATTR_KEYS, line.split()))
-        attr[BS_MODE] = int(attr[BS_MODE], 8)
-        yield attr
+    def get_roots(self):
+        for filename in os.listdir(self.roots_path):
+            with open(os.path.join(self.roots_path, filename)) as fp:
+                yield fp.read()
 
+    def get_tree(self, ref, path=None):
+        if path is not None:
+            ref = self.blobref_by_path(ref, path)
+        for line in self.get_blob(ref).splitlines():
+            attr = dict(zip(self.ATTR_KEYS, line.split()))
+            attr[self.MODE] = int(attr[self.MODE], 8)
+            yield attr
 
-def index_build(ref, dirpath='/'):
-    if dirpath == os.sep:
-        print '040755 tree %s %s' % (ref, dirpath)
-    for attr in get_tree(ref):
-        attr[BS_NAME] = os.path.join(dirpath, attr[BS_NAME])
-        print attr_to_str(attr)
-        if attr[BS_TYPE] == BS_TYPE_TREE:
-            index_build(attr[BS_REF], attr[BS_NAME])
-
-
-def init():
-    try:
-        os.mkdir(REPOPATH)
-        os.mkdir(BLOBPATH)
-    except OSError, e:
-        print e
-
-
-def put_blob(blob):
-    ref = blobref(blob)
-    blobpath = os.path.join(BLOBPATH, ref)
-    if not os.path.exists(blobpath):
-        f = open(blobpath, 'wb')
-        f.write(blob)
-        f.close()
-        os.chmod(blobpath, 0400)
-    return ref
-
-
-def put_file(path):
-    def ignore(name):
-        for glob in IGNORE_FILES:
-            if fnmatch.fnmatch(name, glob):
+    def ignore_file(self, name):
+        if not self.__ignore_patterns:
+            self.__ignore_patterns = ['.btfu']
+            with open(os.path.join(self.root_path, '.btfuignore')) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        self.__ignore_patterns.append(line)
+        for pattern in self.__ignore_patterns:
+            if fnmatch.fnmatch(name, pattern):
                 return True
         return False
-    def put_tree(dirpath):
+
+    def put_file(self, path):
+        if os.path.islink(path):
+            blob = os.readlink(path)
+        elif os.path.isfile(path):
+            f = open(path, 'rb')
+            blob = f.read()
+            f.close()
+        else:
+            blob = self.put_tree(path)
+        return self.put_blob(blob)
+
+    def put_tree(self, dirpath):
         ls = []
         for name in os.listdir(dirpath):
-            if ignore(name):
+            if self.ignore_file(name):
                 continue
             path = os.path.join(dirpath, name)
             st = os.lstat(path)
             attr = {
-                BS_MODE: st.st_mode,
-                BS_TYPE: (BS_TYPE_BLOB if os.path.isfile(path) or
-                          os.path.islink(path) else BS_TYPE_TREE),
-                BS_REF: put_file(path),
-                BS_NAME: name,
+                self.MODE: st.st_mode,
+                self.TYPE: (self.TYPE_BLOB if os.path.isfile(path) or
+                            os.path.islink(path) else self.TYPE_TREE),
+                self.REF: self.put_file(path),
+                self.NAME: name,
             }
-            ls.append(attr_to_str(attr))
+            ls.append(self.attr_to_str(attr))
         return '\n'.join(ls)
-    if os.path.islink(path):
-        blob = os.readlink(path)
-    elif os.path.isfile(path):
-        f = open(path, 'rb')
-        blob = f.read()
-        f.close()
-    else:
-        blob = put_tree(path)
-    return put_blob(blob)
 
+    def set_attr(self, rootref, path, new_attr):
+        dirpath, filename = os.path.split(path)
+        if not filename:
+            return new_attr[self.REF]
+        exists = False
+        tree = []
+        for attr in self.get_tree(rootref, dirpath):
+            if attr[self.NAME] == filename:
+                if self.REF in new_attr:
+                    tree.append(new_attr)
+                exists = True
+            else:
+                tree.append(attr)
+        if not exists:
+            tree.append(new_attr)
+        tree.sort(lambda a, b: cmp(a[self.NAME], b[self.NAME]))
+        ref = self.put_blob('\n'.join(self.attr_to_str(attr) for attr in tree))
+        if dirpath == os.sep:
+            return ref
+        attr = get_attr(rootref, dirpath)
+        attr[self.REF] = ref
+        return set_attr(rootref, dirpath, attr)
 
-def set_attr(rootref, path, new_attr):
-    dirpath, filename = os.path.split(path)
-    if not filename:
-        return new_attr[BS_REF]
-    exists = False
-    tree = []
-    for attr in get_tree(rootref, dirpath):
-        if attr[BS_NAME] == filename:
-            if BS_REF in new_attr:
-                tree.append(new_attr)
-            exists = True
-        else:
-            tree.append(attr)
-    if not exists:
-        tree.append(new_attr)
-    tree.sort(lambda a, b: cmp(a[BS_NAME], b[BS_NAME]))
-    ref = put_blob('\n'.join(attr_to_str(attr) for attr in tree))
-    if dirpath == os.sep:
-        return ref
-    attr = get_attr(rootref, dirpath)
-    attr[BS_REF] = ref
-    return set_attr(rootref, dirpath, attr)
-
-
-def set_rootref(ref):
-    f = open(ROOTREF_PATH, 'wb')
-    f.write(ref)
-    f.close()
-
-
-def files_by_path(ref, path):
-    return [row[BS_NAME] for row in get_tree(ref, path)]
+    def files_by_path(self, ref, path):
+        return [row[self.NAME] for row in self.get_tree(ref, path)]
