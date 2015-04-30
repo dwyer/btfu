@@ -6,11 +6,11 @@ import sys
 
 from fuse import FUSE, FuseOSError, Operations
 
-from bs import FileAttr, FileStore
+import bs
 
 ENCODING = 'utf-8'
 
-bs = FileStore()
+store = bs.FileStore()
 
 
 class BTFS(Operations):
@@ -23,16 +23,16 @@ class BTFS(Operations):
     def access(self, path, mode):
         # print 'access', path, mode
         path = path.encode(ENCODING)
-        if bs.blobref_by_path(self.rootref, path):
+        if store.blobref_by_path(self.rootref, path):
             return 0
         raise FuseOSError(errno.EACCES)
 
     def chmod(self, path, mode):
         # print 'chmod', path, mode
         path = path.encode(ENCODING)
-        attr = bs.get_attr(self.rootref, path)
+        attr = store.get_attr(self.rootref, path)
         attr.mod = mode
-        self.rootref = bs.set_attr(self.rootref, path, attr)
+        self.rootref = store.set_attr(self.rootref, path, attr)
         return 0
 
     def chown(self, path, uid, gid):
@@ -44,9 +44,9 @@ class BTFS(Operations):
         path = path.encode(ENCODING)
         self.fh += 1
         fh = self.fh
-        ref = self.fh_refs[fh] = bs.put_blob('')
-        attr = FileAttr(bs.TYPE_BLOB, ref, mode, os.path.split(path)[-1])
-        self.rootref = bs.set_attr(self.rootref, path, attr)
+        ref = self.fh_refs[fh] = store.put_blob('')
+        attr = bs.FileAttr(bs.TYPE_BLOB, ref, mode, os.path.split(path)[-1])
+        self.rootref = store.set_attr(self.rootref, path, attr)
         return fh
 
     def flush(self, path, fh):
@@ -58,10 +58,10 @@ class BTFS(Operations):
         path = path.encode(ENCODING)
         if path == os.sep:
             return dict(st_mode=(stat.S_IFDIR | 0755), st_nlink=2)
-        attr = bs.get_attr(self.rootref, path)
+        attr = store.get_attr(self.rootref, path)
         if not attr:
             raise FuseOSError(errno.ENOENT)
-        return dict(st_mode=attr.mod, st_size=bs.get_blobsize(attr.ref))
+        return dict(st_mode=attr.mod, st_size=store.get_blobsize(attr.ref))
 
     def getxattr(self, path, name, position=0):
         # print 'getxattr', path, name, position
@@ -74,33 +74,33 @@ class BTFS(Operations):
     def mkdir(self, path, mode):
         # print 'mkdir', path, mode
         path = path.encode(ENCODING)
-        ref = bs.put_blob('')
-        attr = FileAttr(bs.TYPE_TREE, ref, mode, os.path.split(path)[-1])
-        self.rootref = bs.set_attr(self.rootref, path, attr)
+        ref = store.put_blob('')
+        attr = bs.FileAttr(bs.TYPE_TREE, ref, mode, os.path.split(path)[-1])
+        self.rootref = store.set_attr(self.rootref, path, attr)
 
     def open(self, path, flags):
         # TODO: If the write flag is set, open a temporary copy.
         # print 'open', path, flags
         path = path.encode(ENCODING)
-        ref = bs.blobref_by_path(self.rootref, path)
+        ref = store.blobref_by_path(self.rootref, path)
         self.fh += 1
         self.fh_refs[self.fh] = ref
         return self.fh
 
     def read(self, path, size, offset, fh):
         # print 'read', path, size, offset, fh
-        return bs.get_blob(self.fh_refs[fh], size=size, offset=offset)
+        return store.get_blob(self.fh_refs[fh], size=size, offset=offset)
 
     def readdir(self, path, fh):
         # print 'readdir', path, fh
         path = path.encode(ENCODING)
         return ['.', '..'] + map(lambda s: s.decode(ENCODING),
-                                 bs.files_by_path(self.rootref, path))
+                                 store.files_by_path(self.rootref, path))
 
     def readlink(self, path):
         # print 'readlink', path
         path = path.encode(ENCODING)
-        return bs.get_blob(self.rootref, path)
+        return store.get_blob(self.rootref, path)
 
     def release(self, path, fh):
         # print 'release', path, fh
@@ -115,27 +115,27 @@ class BTFS(Operations):
         # print 'rename', old, new
         old = old.encode(ENCODING)
         new = new.encode(ENCODING)
-        attr = bs.get_attr(self.rootref, old)
+        attr = store.get_attr(self.rootref, old)
         old_dirpath, old_filename = os.path.split(old)
         new_dirpath, new_filename = os.path.split(new)
         if old_dirpath == new_dirpath:
             attr.name = new_filename
-            self.rootref = bs.set_attr(self.rootref, old, attr)
+            self.rootref = store.set_attr(self.rootref, old, attr)
             return
-        new_attr = FileAttr(attr.typ, attr.typ, attr.mod, new_filename)
+        new_attr = bs.FileAttr(attr.typ, attr.typ, attr.mod, new_filename)
         attr.ref = None
         # TODO: try to do this without rebuilding the tree twice.
-        self.rootref = bs.set_attr(self.rootref, old, attr)
-        self.rootref = bs.set_attr(self.rootref, new, new_attr)
+        self.rootref = store.set_attr(self.rootref, old, attr)
+        self.rootref = store.set_attr(self.rootref, new, new_attr)
 
     def rmdir(self, path):
         # print 'rmdir', path
         path = path.encode(ENCODING)
-        attr = bs.get_attr(self.rootref, path)
-        if bs.get_blobsize(attr.ref):
+        attr = store.get_attr(self.rootref, path)
+        if store.get_blobsize(attr.ref):
             raise FuseOSError(errno.ENOTEMPTY)
         del attr.ref
-        self.rootref = bs.set_attr(self.rootref, path, attr)
+        self.rootref = store.set_attr(self.rootref, path, attr)
 
     def statfs(self, path):
         # print 'statfs', path
@@ -151,25 +151,25 @@ class BTFS(Operations):
         # print 'symlink', target, source
         target = target.encode(ENCODING)
         source = source.encode(ENCODING)
-        ref = bs.put_blob(source)
-        attr = FileAttr(bs.TYPE_BLOB, ref, stat.S_IFLNK | 0755,
-                        os.path.split(target)[1])
-        self.rootref = bs.set_attr(self.rootref, target, attr)
+        ref = store.put_blob(source)
+        attr = bs.FileAttr(store.TYPE_BLOB, ref, stat.S_IFLNK | 0755,
+                           os.path.split(target)[1])
+        self.rootref = store.set_attr(self.rootref, target, attr)
 
     def truncate(self, path, length, fh=None):
         print 'truncate', path, length, fh
         path = path.encode(ENCODING)
-        attr = bs.get_attr(self.rootref, path)
-        attr.ref = bs.put_blob(bs.get_blob(attr.ref, size=length))
-        self.rootref = bs.set_attr(self.rootref, path, attr)
+        attr = store.get_attr(self.rootref, path)
+        attr.ref = store.put_blob(store.get_blob(attr.ref, size=length))
+        self.rootref = store.set_attr(self.rootref, path, attr)
         if fh is not None:
             self.fh_refs[fh] = attr.ref
 
     def unlink(self, path):
         path = path.encode(ENCODING)
-        attr = bs.get_attr(self.rootref, path)
+        attr = store.get_attr(self.rootref, path)
         attr.ref = None
-        self.rootref = bs.set_attr(self.rootref, path, attr)
+        self.rootref = store.set_attr(self.rootref, path, attr)
 
     def utimens(self, path, times=None):
         # print 'utimens', path, times
@@ -178,12 +178,12 @@ class BTFS(Operations):
     def write(self, path, data, offset, fh):
         # print 'write', path, offset, fh
         path = path.encode(ENCODING)
-        attr = bs.get_attr(self.rootref, path)
+        attr = store.get_attr(self.rootref, path)
         if not attr:
             raise FuseOSError(errno.ENOENT)
-        attr.ref = self.fh_refs[fh] = bs.put_blob(
-            bs.get_blob(self.fh_refs[fh], size=offset) + data)
-        self.rootref = bs.set_attr(self.rootref, path, attr)
+        attr.ref = self.fh_refs[fh] = store.put_blob(
+            store.get_blob(self.fh_refs[fh], size=offset) + data)
+        self.rootref = store.set_attr(self.rootref, path, attr)
         return len(data)
 
 

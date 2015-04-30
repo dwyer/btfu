@@ -29,11 +29,11 @@ def btfu_checkout(args):
     def loop(treeref, dirname='.'):
         for attr in store.get_tree(treeref):
             path = os.path.join(dirname, attr.name)
-            if attr.typ == store.TYPE_BLOB:
+            if attr.typ == bs.TYPE_BLOB:
                 with open(path, 'wb') as fp:
                     fp.write(store.get_blob(attr.ref))
                 os.chmod(path, attr.mod)
-            elif attr.typ == store.TYPE_TREE:
+            elif attr.typ == bs.TYPE_TREE:
                 if not os.path.exists(path):
                     os.mkdir(path)
                 os.chmod(path, attr.mod)
@@ -67,9 +67,9 @@ def btfu_hist(args):
     while rootref is not None:
         root = store.get_root(rootref)
         print rootref, (datetime.datetime
-                        .fromtimestamp(float(root[store.TYPE_CTIME]))
+                        .fromtimestamp(float(root.ctime))
                         .strftime('%Y-%m-%d %H:%M:%S'))
-        rootref = root.get(store.TYPE_PARENT)
+        rootref = root.rootref
 
 
 def btfu_list(args):
@@ -78,15 +78,17 @@ def btfu_list(args):
         for attr in store.get_tree(treeref):
             attr.name = os.path.join(dirpath, attr.name)
             print attr
-            if attr.typ == store.TYPE_TREE:
+            if attr.typ == bs.TYPE_TREE:
                 index_build(attr.ref, attr.name)
     if args.treeref is None:
         rootref = get_rootref()
         root = store.get_root(rootref)
-        tree = root[store.TYPE_TREE]
-        args.treeref = tree.ref
-        print str(tree)
-    index_build(args.treeref)
+        tree = root.tree
+        args.treeref = root.tree
+    else:
+        tree = store.get_tree(args.treeref)
+    print str(tree)
+    index_build(tree.ref)
 
 
 def btfu_mount(args):
@@ -94,7 +96,7 @@ def btfu_mount(args):
     try:
         import fs
         if args.treeref is None:
-            args.treeref = store.get_root(get_rootref())[store.TYPE_TREE].ref
+            args.treeref = store.get_root(get_rootref()).tree.ref
         fs.mount(args.treeref, args.mountpoint)
     except ImportError, e:
         print >>sys.stderr, 'error: mount requires additional libraries:', e
@@ -148,7 +150,7 @@ def main(args):
     # mount
     subparser = subparsers.add_parser('mount', help=btfu_mount.__doc__)
     subparser.set_defaults(func=btfu_mount)
-    subparser.add_argument('mountpoint')
+    subparser.add_argument('mountpoint', nargs='?')
     subparser.add_argument('treeref', nargs='?')
     # roots
     subparser = subparsers.add_parser('roots', help=btfu_roots.__doc__)

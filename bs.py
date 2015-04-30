@@ -10,6 +10,11 @@ BLOBSTORE_NAME = '.btfu'
 ROOTREF_FILE = '.rootref'
 HOME_DIR = os.environ['HOME']
 
+TYPE_BLOB = 'blob'
+TYPE_TREE = 'tree'
+TYPE_PARENT = 'root'
+TYPE_CTIME = 'ctime'
+
 
 class BlobStore(object):
 
@@ -87,11 +92,6 @@ class FileAttr:
 
 class FileStore(BlobStore):
 
-    TYPE_BLOB = 'blob'
-    TYPE_TREE = 'tree'
-    TYPE_PARENT = 'root'
-    TYPE_CTIME = 'ctime'
-
     def __init__(self, root_name='.'):
         super(FileStore, self).__init__()
         self.root_path = os.path.abspath(root_name)
@@ -156,8 +156,8 @@ class FileStore(BlobStore):
                 continue
             path = os.path.join(dirpath, name)
             st = os.lstat(path)
-            typ = (self.TYPE_BLOB if os.path.isfile(path)
-                   or os.path.islink(path) else self.TYPE_TREE)
+            typ = (TYPE_BLOB if os.path.isfile(path) or os.path.islink(path)
+                   else TYPE_TREE)
             attr = FileAttr(typ, self.put_file(path), st.st_mode, name)
             ls.append(str(attr))
         return '\n'.join(ls)
@@ -189,23 +189,43 @@ class FileStore(BlobStore):
         return [row.name for row in self.get_tree(ref, path)]
 
 
+class RootAttr:
+
+    def __init__(self, rootref, tree, ctime):
+        self.rootref = rootref
+        self.tree = tree
+        self.ctime = ctime
+
+    def __str__(self):
+        ls = []
+        if self.rootref is not None:
+            ls.append('%s %s' % (TYPE_PARENT, self.rootref))
+        ls.append(str(self.tree))
+        ls.append('%s %s' % (TYPE_CTIME, self.ctime))
+        return '\n'.join(ls)
+
+    @classmethod
+    def parse(self, s):
+        root = None
+        tree = None
+        ctime = None
+        for line in s.splitlines():
+            key, value = line.split(' ', 1)
+            if key == TYPE_PARENT:
+                root = value
+            elif key == TYPE_TREE:
+                tree = FileAttr.parse(line)
+            elif key == TYPE_CTIME:
+                ctime = float(value)
+            else:
+                continue
+        return RootAttr(root, tree, ctime)
+
+
 class RootStore(FileStore):
 
     def get_root(self, ref):
-        root = {}
-        blob = self.get_blob(ref)
-        for line in blob.split('\n'):
-            key, value = line.split(' ', 1)
-            if key == self.TYPE_PARENT:
-                pass
-            elif key == self.TYPE_TREE:
-                value = FileAttr.parse(line)
-            elif key == 'ctime':
-                value = float(value)
-            else:
-                continue
-            root[key] = value
-        return root
+        return RootAttr.parse(self.get_blob(ref))
 
     def get_roots(self):
         for filename in os.listdir(self.roots_path):
@@ -216,17 +236,7 @@ class RootStore(FileStore):
         treeref = self.put_file(filename)
         if rootref is not None:
             root = self.get_root(rootref)
-            tree = root[self.TYPE_TREE]
-            if treeref == tree.ref:
+            if treeref == root.tree.ref:
                 return rootref
-        ls = []
-        # add the parent root, is applicable
-        if rootref is not None:
-            ls.append('%s %s' % (self.TYPE_PARENT, rootref))
-        # add the treeref
-        stat = os.lstat(filename)
-        ls.append(str(FileAttr(self.TYPE_TREE, treeref, stat.st_mode, '.')))
-        # add the ctime
-        ls.append('%s %s' % (self.TYPE_CTIME, str(time.time())))
-        rootref = self.put_blob('\n'.join(ls))
-        return rootref
+        tree = FileAttr(TYPE_TREE, treeref, os.lstat(filename).st_mode, '.')
+        return self.put_blob(str(RootAttr(rootref, tree, time.time())))
