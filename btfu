@@ -7,7 +7,7 @@ import os
 import sys
 import time
 
-from bs import FileStore
+from bs import FileAttr, FileStore
 
 bs = FileStore()
 
@@ -29,20 +29,16 @@ def btfu_checkout(args):
     """Copy the current root into the current working directory."""
     def loop(treeref, dirname='.'):
         for attr in bs.get_tree(treeref):
-            # print attr
-            path = os.path.join(dirname, attr['bs_name'])
-            if attr['bs_type'] == 'blob':
+            path = os.path.join(dirname, attr.name)
+            if attr.typ == bs.TYPE_BLOB:
                 with open(path, 'wb') as fp:
-                    fp.write(bs.get_blob(attr['bs_ref']))
-                os.chmod(path, attr['st_mode'])
-            elif attr['bs_type'] == 'tree':
+                    fp.write(bs.get_blob(attr.ref))
+                os.chmod(path, attr.mod)
+            elif attr.typ == bs.TYPE_TREE:
                 if not os.path.exists(path):
                     os.mkdir(path)
-                os.chmod(path, attr['st_mode'])
-                loop(attr['bs_ref'], path)
-    if os.path.exists(args.dest):
-        print 'destination %s already exists' % args.dest
-        exit(1)
+                os.chmod(path, attr.mod)
+                loop(attr.ref, path)
     try:
         os.mkdir(args.dest)
     except IOError, e:
@@ -52,21 +48,28 @@ def btfu_checkout(args):
 
 
 def btfu_commit(args):
-    """Add the working directory tree and create a root reference."""
+    """Put the working directory tree and create a root reference."""
     # FIXME: right now `add` just rebuilds the entire root tree. It should be
     # able to add a single file and simply rebuild its parent branches.
+    args.filename = '.' # TODO: make this an acual arguemnt
     rootref = get_rootref()
-    treeref = bs.put_file('.')
-    ls = [[bs.TYPE_TREE, treeref]]
+    treeref = bs.put_file(args.filename)
     if rootref is not None:
         root = bs.get_root(rootref)
-        if root.get(bs.TYPE_TREE, None) == treeref:
+        tree = root[bs.TYPE_TREE]
+        if treeref == tree.ref:
             print rootref
             return
+    ls = []
+    # add the parent root, is applicable
     if rootref is not None:
-        ls.append([bs.TYPE_PARENT, rootref])
-    ls.append([bs.TYPE_CTIME, str(time.time())])
-    rootref = bs.put_blob('\n'.join(' '.join(pair) for pair in ls))
+        ls.append('%s %s' % (bs.TYPE_PARENT, rootref))
+    # add the treeref
+    stat = os.lstat(args.filename)
+    ls.append(str(FileAttr(bs.TYPE_TREE, treeref, stat.st_mode, '.')))
+    # add the ctime
+    ls.append('%s %s' % (bs.TYPE_CTIME, str(time.time())))
+    rootref = bs.put_blob('\n'.join(ls))
     set_rootref(rootref)
     print rootref
 
@@ -89,18 +92,18 @@ def btfu_hist(args):
 
 def btfu_list(args):
     """Display a list of files in the current root."""
-    def index_build(treeref, dirpath=os.sep):
-        if dirpath == os.sep:
-            print '040755 tree %s %s' % (treeref, dirpath)
+    def index_build(treeref, dirpath=''):
         for attr in bs.get_tree(treeref):
-            attr[bs.NAME] = os.path.join(dirpath, attr[bs.NAME])
-            print bs.attr_to_str(attr)
-            if attr[bs.TYPE] == bs.TYPE_TREE:
-                index_build(attr[bs.REF], attr[bs.NAME])
+            attr.name = os.path.join(dirpath, attr.name)
+            print attr
+            if attr.typ == bs.TYPE_TREE:
+                index_build(attr.ref, attr.name)
     if args.treeref is None:
         rootref = get_rootref()
         root = bs.get_root(rootref)
-        args.treeref = root[bs.TYPE_TREE]
+        tree = root[bs.TYPE_TREE]
+        args.treeref = tree.ref
+        print str(tree)
     index_build(args.treeref)
 
 
@@ -109,7 +112,7 @@ def btfu_mount(args):
     try:
         import fs
         if args.treeref is None:
-            args.treeref = bs.get_root(get_rootref())[bs.TYPE_TREE]
+            args.treeref = bs.get_root(get_rootref())[bs.TYPE_TREE].ref
         fs.mount(args.treeref, args.mountpoint)
     except ImportError, e:
         print >>sys.stderr, 'error: mount requires additional libraries:', e

@@ -66,12 +66,24 @@ class CloudStore(BlobStore):
         return str(self.gpg.encrypt(blob, self.key_id, armor=False))
 
 
-class FileStore(BlobStore):
+class FileAttr:
 
-    MODE = 'st_mode'
-    TYPE = 'bs_type'
-    REF = 'bs_ref'
-    NAME = 'bs_name'
+    def __init__(self, typ, ref, mod, name):
+        self.typ = typ
+        self.ref = ref
+        self.mod = mod
+        self.name = name
+
+    def __str__(self):
+        return '%s %s %06o %s' % (self.typ, self.ref, self.mod, self.name)
+
+    @classmethod
+    def parse(cls, s):
+        typ, ref, mod, name = s.split()
+        return cls(typ, ref, int(mod, 8), name)
+
+
+class FileStore(BlobStore):
 
     TYPE_BLOB = 'blob'
     TYPE_TREE = 'tree'
@@ -81,12 +93,8 @@ class FileStore(BlobStore):
     def __init__(self, root_name='.'):
         super(FileStore, self).__init__()
         self.root_path = os.path.abspath(root_name)
-        self.ATTR_KEYS = [self.MODE, self.TYPE, self.REF, self.NAME]
         self.key_id = ''
         self.__ignore_patterns = None
-
-    def attr_to_str(self, attr):
-        return '%06o %s %s %s' % tuple(attr[key] for key in self.ATTR_KEYS)
 
     def blobref_by_path(self, ref, path):
         if not path:
@@ -97,21 +105,33 @@ class FileStore(BlobStore):
             return self.blobref_by_path(ref, path)
         name = path.pop(0)
         for obj in self.get_tree(ref):
-            if obj[self.NAME] == name:
-                return self.blobref_by_path(obj[self.REF], path)
+            if obj.name == name:
+                return self.blobref_by_path(obj.ref, path)
         return ref
 
     def get_attr(self, ref, path):
         path, name = os.path.split(path)
         ref = self.blobref_by_path(ref, path)
         for attr in self.get_tree(ref):
-            if name == attr[self.NAME]:
+            if name == attr.name:
                 return attr
         return None
 
     def get_root(self, ref):
+        root = {}
         blob = self.get_blob(ref)
-        return dict(line.split() for line in blob.split('\n'))
+        for line in blob.split('\n'):
+            key, value = line.split(' ', 1)
+            if key == self.TYPE_PARENT:
+                pass
+            elif key == self.TYPE_TREE:
+                value = FileAttr.parse(line)
+            elif key == 'ctime':
+                value = float(value)
+            else:
+                continue
+            root[key] = value
+        return root
 
     def get_roots(self):
         for filename in os.listdir(self.roots_path):
@@ -122,9 +142,7 @@ class FileStore(BlobStore):
         if path is not None:
             ref = self.blobref_by_path(ref, path)
         for line in self.get_blob(ref).splitlines():
-            attr = dict(zip(self.ATTR_KEYS, line.split()))
-            attr[self.MODE] = int(attr[self.MODE], 8)
-            yield attr
+            yield FileAttr.parse(line)
 
     def ignore_file(self, name):
         if not self.__ignore_patterns:
@@ -157,38 +175,34 @@ class FileStore(BlobStore):
                 continue
             path = os.path.join(dirpath, name)
             st = os.lstat(path)
-            attr = {
-                self.MODE: st.st_mode,
-                self.TYPE: (self.TYPE_BLOB if os.path.isfile(path) or
-                            os.path.islink(path) else self.TYPE_TREE),
-                self.REF: self.put_file(path),
-                self.NAME: name,
-            }
-            ls.append(self.attr_to_str(attr))
+            typ = (self.TYPE_BLOB if os.path.isfile(path)
+                   or os.path.islink(path) else self.TYPE_TREE)
+            attr = FileAttr(typ, self.put_file(path), st.st_mode, name)
+            ls.append(str(attr))
         return '\n'.join(ls)
 
     def set_attr(self, rootref, path, new_attr):
         dirpath, filename = os.path.split(path)
         if not filename:
-            return new_attr[self.REF]
+            return new_attr.ref
         exists = False
         tree = []
         for attr in self.get_tree(rootref, dirpath):
-            if attr[self.NAME] == filename:
-                if self.REF in new_attr:
+            if attr.name == filename:
+                if new_attr.ref:
                     tree.append(new_attr)
                 exists = True
             else:
                 tree.append(attr)
         if not exists:
             tree.append(new_attr)
-        tree.sort(lambda a, b: cmp(a[self.NAME], b[self.NAME]))
-        ref = self.put_blob('\n'.join(self.attr_to_str(attr) for attr in tree))
+        tree.sort(lambda a, b: cmp(a.name, b.name))
+        ref = self.put_blob('\n'.join(map(str, tree)))
         if dirpath == os.sep:
             return ref
-        attr = get_attr(rootref, dirpath)
-        attr[self.REF] = ref
-        return set_attr(rootref, dirpath, attr)
+        attr = self.get_attr(rootref, dirpath)
+        attr.ref = ref
+        return self.set_attr(rootref, dirpath, attr)
 
     def files_by_path(self, ref, path):
-        return [row[self.NAME] for row in self.get_tree(ref, path)]
+        return [row.name for row in self.get_tree(ref, path)]
