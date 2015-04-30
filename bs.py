@@ -9,6 +9,7 @@ import uuid
 BLOBSTORE_NAME = '.btfu'
 ROOTREF_FILE = '.rootref'
 HOME_DIR = os.environ['HOME']
+DEFAULT_PORT = 0xcab
 
 TYPE_BLOB = 'blob'
 TYPE_TREE = 'tree'
@@ -29,9 +30,12 @@ class BlobStore(object):
     def get_blob(self, ref, path=None, size=-1, offset=0):
         if path is not None:
             ref = self.blobref_by_path(ref, path)
-        with open(self.get_blobpath(ref), 'rb') as f:
-            f.seek(offset)
-            return f.read(size)
+        try:
+            with open(self.get_blobpath(ref), 'rb') as f:
+                f.seek(offset)
+                return f.read(size)
+        except IOError:
+            return None
 
     def get_blobpath(self, ref, split=False):
         a, b = ref.split('-', 1)

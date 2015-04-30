@@ -116,6 +116,12 @@ def btfu_roots(args):
         print root
 
 
+def btfu_serve(args):
+    """Start the blob server."""
+    import server
+    server.serve()
+
+
 def btfu_setup(args):
     """Set up the blobstore."""
     store.setup()
@@ -155,6 +161,9 @@ def main(args):
     # roots
     subparser = subparsers.add_parser('roots', help=btfu_roots.__doc__)
     subparser.set_defaults(func=btfu_roots)
+    # serve
+    subparser = subparsers.add_parser('serve', help=btfu_serve.__doc__)
+    subparser.set_defaults(func=btfu_serve)
     # setup
     # TODO: make this automatic
     subparser = subparsers.add_parser('setup', help=btfu_setup.__doc__)
