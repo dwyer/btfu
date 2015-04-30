@@ -5,23 +5,22 @@ import datetime
 import getpass
 import os
 import sys
-import time
 
 import bs
 
-store = bs.FileStore()
+store = bs.RootStore()
 
 
 def get_rootref():
     try:
-        with open('.btfu') as fp:
+        with open(bs.ROOTREF_FILE) as fp:
             return fp.read()
     except IOError:
         return None
 
 
 def set_rootref(ref):
-    with open('.btfu', 'wb') as fp:
+    with open(bs.ROOTREF_FILE, 'wb') as fp:
         fp.write(ref)
 
 
@@ -51,25 +50,8 @@ def btfu_commit(args):
     """Put the working directory tree and create a root reference."""
     # FIXME: right now `add` just rebuilds the entire root tree. It should be
     # able to add a single file and simply rebuild its parent branches.
-    args.filename = '.' # TODO: make this an acual arguemnt
     rootref = get_rootref()
-    treeref = store.put_file(args.filename)
-    if rootref is not None:
-        root = store.get_root(rootref)
-        tree = root[store.TYPE_TREE]
-        if treeref == tree.ref:
-            print rootref
-            return
-    ls = []
-    # add the parent root, is applicable
-    if rootref is not None:
-        ls.append('%s %s' % (store.TYPE_PARENT, rootref))
-    # add the treeref
-    stat = os.lstat(args.filename)
-    ls.append(str(bs.FileAttr(store.TYPE_TREE, treeref, stat.st_mode, '.')))
-    # add the ctime
-    ls.append('%s %s' % (store.TYPE_CTIME, str(time.time())))
-    rootref = store.put_blob('\n'.join(ls))
+    rootref = store.put_root(rootref, '.')
     set_rootref(rootref)
     print rootref
 

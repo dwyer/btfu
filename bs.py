@@ -3,9 +3,11 @@ import fnmatch
 import hashlib
 import os
 import stat
+import time
 import uuid
 
 BLOBSTORE_NAME = '.btfu'
+ROOTREF_FILE = '.rootref'
 HOME_DIR = os.environ['HOME']
 
 
@@ -117,27 +119,6 @@ class FileStore(BlobStore):
                 return attr
         return None
 
-    def get_root(self, ref):
-        root = {}
-        blob = self.get_blob(ref)
-        for line in blob.split('\n'):
-            key, value = line.split(' ', 1)
-            if key == self.TYPE_PARENT:
-                pass
-            elif key == self.TYPE_TREE:
-                value = FileAttr.parse(line)
-            elif key == 'ctime':
-                value = float(value)
-            else:
-                continue
-            root[key] = value
-        return root
-
-    def get_roots(self):
-        for filename in os.listdir(self.roots_path):
-            with open(os.path.join(self.roots_path, filename)) as fp:
-                yield fp.read()
-
     def get_tree(self, ref, path=None):
         if path is not None:
             ref = self.blobref_by_path(ref, path)
@@ -146,7 +127,7 @@ class FileStore(BlobStore):
 
     def ignore_file(self, name):
         if not self.__ignore_patterns:
-            self.__ignore_patterns = ['.btfu']
+            self.__ignore_patterns = ['.btfu', ROOTREF_FILE]
             with open(os.path.join(self.root_path, '.btfuignore')) as f:
                 for line in f:
                     line = line.strip()
@@ -206,3 +187,46 @@ class FileStore(BlobStore):
 
     def files_by_path(self, ref, path):
         return [row.name for row in self.get_tree(ref, path)]
+
+
+class RootStore(FileStore):
+
+    def get_root(self, ref):
+        root = {}
+        blob = self.get_blob(ref)
+        for line in blob.split('\n'):
+            key, value = line.split(' ', 1)
+            if key == self.TYPE_PARENT:
+                pass
+            elif key == self.TYPE_TREE:
+                value = FileAttr.parse(line)
+            elif key == 'ctime':
+                value = float(value)
+            else:
+                continue
+            root[key] = value
+        return root
+
+    def get_roots(self):
+        for filename in os.listdir(self.roots_path):
+            with open(os.path.join(self.roots_path, filename)) as fp:
+                yield fp.read()
+
+    def put_root(self, rootref, filename):
+        treeref = self.put_file(filename)
+        if rootref is not None:
+            root = self.get_root(rootref)
+            tree = root[self.TYPE_TREE]
+            if treeref == tree.ref:
+                return rootref
+        ls = []
+        # add the parent root, is applicable
+        if rootref is not None:
+            ls.append('%s %s' % (self.TYPE_PARENT, rootref))
+        # add the treeref
+        stat = os.lstat(filename)
+        ls.append(str(FileAttr(self.TYPE_TREE, treeref, stat.st_mode, '.')))
+        # add the ctime
+        ls.append('%s %s' % (self.TYPE_CTIME, str(time.time())))
+        rootref = self.put_blob('\n'.join(ls))
+        return rootref
