@@ -7,9 +7,9 @@ import os
 import sys
 import time
 
-from bs import FileAttr, FileStore
+import bs
 
-bs = FileStore()
+store = bs.FileStore()
 
 
 def get_rootref():
@@ -28,13 +28,13 @@ def set_rootref(ref):
 def btfu_checkout(args):
     """Copy the current root into the current working directory."""
     def loop(treeref, dirname='.'):
-        for attr in bs.get_tree(treeref):
+        for attr in store.get_tree(treeref):
             path = os.path.join(dirname, attr.name)
-            if attr.typ == bs.TYPE_BLOB:
+            if attr.typ == store.TYPE_BLOB:
                 with open(path, 'wb') as fp:
-                    fp.write(bs.get_blob(attr.ref))
+                    fp.write(store.get_blob(attr.ref))
                 os.chmod(path, attr.mod)
-            elif attr.typ == bs.TYPE_TREE:
+            elif attr.typ == store.TYPE_TREE:
                 if not os.path.exists(path):
                     os.mkdir(path)
                 os.chmod(path, attr.mod)
@@ -53,55 +53,55 @@ def btfu_commit(args):
     # able to add a single file and simply rebuild its parent branches.
     args.filename = '.' # TODO: make this an acual arguemnt
     rootref = get_rootref()
-    treeref = bs.put_file(args.filename)
+    treeref = store.put_file(args.filename)
     if rootref is not None:
-        root = bs.get_root(rootref)
-        tree = root[bs.TYPE_TREE]
+        root = store.get_root(rootref)
+        tree = root[store.TYPE_TREE]
         if treeref == tree.ref:
             print rootref
             return
     ls = []
     # add the parent root, is applicable
     if rootref is not None:
-        ls.append('%s %s' % (bs.TYPE_PARENT, rootref))
+        ls.append('%s %s' % (store.TYPE_PARENT, rootref))
     # add the treeref
     stat = os.lstat(args.filename)
-    ls.append(str(FileAttr(bs.TYPE_TREE, treeref, stat.st_mode, '.')))
+    ls.append(str(bs.FileAttr(store.TYPE_TREE, treeref, stat.st_mode, '.')))
     # add the ctime
-    ls.append('%s %s' % (bs.TYPE_CTIME, str(time.time())))
-    rootref = bs.put_blob('\n'.join(ls))
+    ls.append('%s %s' % (store.TYPE_CTIME, str(time.time())))
+    rootref = store.put_blob('\n'.join(ls))
     set_rootref(rootref)
     print rootref
 
 
 def btfu_get(args):
     """Print a blob to stdout."""
-    print bs.get_blob(args.ref),
+    print store.get_blob(args.ref),
 
 
 def btfu_hist(args):
     """Display the history of the given root."""
     rootref = get_rootref()
     while rootref is not None:
-        root = bs.get_root(rootref)
+        root = store.get_root(rootref)
         print rootref, (datetime.datetime
-                        .fromtimestamp(float(root[bs.TYPE_CTIME]))
+                        .fromtimestamp(float(root[store.TYPE_CTIME]))
                         .strftime('%Y-%m-%d %H:%M:%S'))
-        rootref = root.get(bs.TYPE_PARENT)
+        rootref = root.get(store.TYPE_PARENT)
 
 
 def btfu_list(args):
     """Display a list of files in the current root."""
     def index_build(treeref, dirpath=''):
-        for attr in bs.get_tree(treeref):
+        for attr in store.get_tree(treeref):
             attr.name = os.path.join(dirpath, attr.name)
             print attr
-            if attr.typ == bs.TYPE_TREE:
+            if attr.typ == store.TYPE_TREE:
                 index_build(attr.ref, attr.name)
     if args.treeref is None:
         rootref = get_rootref()
-        root = bs.get_root(rootref)
-        tree = root[bs.TYPE_TREE]
+        root = store.get_root(rootref)
+        tree = root[store.TYPE_TREE]
         args.treeref = tree.ref
         print str(tree)
     index_build(args.treeref)
@@ -112,7 +112,7 @@ def btfu_mount(args):
     try:
         import fs
         if args.treeref is None:
-            args.treeref = bs.get_root(get_rootref())[bs.TYPE_TREE].ref
+            args.treeref = store.get_root(get_rootref())[store.TYPE_TREE].ref
         fs.mount(args.treeref, args.mountpoint)
     except ImportError, e:
         print >>sys.stderr, 'error: mount requires additional libraries:', e
@@ -121,20 +121,20 @@ def btfu_mount(args):
 def btfu_put(args):
     """Put a blob in the blobstore."""
     if args.path is None:
-        print bs.put_blob(sys.stdin.read())
+        print store.put_blob(sys.stdin.read())
     else:
-        print bs.put_file(args.path)
+        print store.put_file(args.path)
 
 
 def btfu_roots(args):
     """Show a list of all the archived roots."""
-    for root in bs.get_roots():
+    for root in store.get_roots():
         print root
 
 
 def btfu_setup(args):
     """Set up the blobstore."""
-    bs.setup()
+    store.setup()
 
 
 def main(args):
