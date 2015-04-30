@@ -81,7 +81,7 @@ class FileAttr:
 
     @classmethod
     def parse(cls, s):
-        typ, ref, mod, name = s.split()
+        typ, ref, mod, name = s.split(' ', 3)
         return cls(typ, ref, int(mod, 8), name)
 
 
