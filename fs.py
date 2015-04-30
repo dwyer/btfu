@@ -8,6 +8,8 @@ from fuse import FUSE, FuseOSError, Operations
 
 from bs import FileAttr, FileStore
 
+ENCODING = 'utf-8'
+
 bs = FileStore()
 
 
@@ -20,12 +22,14 @@ class BTFS(Operations):
 
     def access(self, path, mode):
         # print 'access', path, mode
+        path = path.encode(ENCODING)
         if bs.blobref_by_path(self.rootref, path):
             return 0
         raise FuseOSError(errno.EACCES)
 
     def chmod(self, path, mode):
         # print 'chmod', path, mode
+        path = path.encode(ENCODING)
         attr = bs.get_attr(self.rootref, path)
         attr.mod = mode
         self.rootref = bs.set_attr(self.rootref, path, attr)
@@ -37,6 +41,7 @@ class BTFS(Operations):
 
     def create(self, path, mode):
         # print 'create', path, mode
+        path = path.encode(ENCODING)
         self.fh += 1
         fh = self.fh
         ref = self.fh_refs[fh] = bs.put_blob('')
@@ -50,6 +55,7 @@ class BTFS(Operations):
 
     def getattr(self, path, fh=None):
         # print 'getattr', path, fh
+        path = path.encode(ENCODING)
         if path == os.sep:
             return dict(st_mode=(stat.S_IFDIR | 0755), st_nlink=2)
         attr = bs.get_attr(self.rootref, path)
@@ -67,6 +73,7 @@ class BTFS(Operations):
 
     def mkdir(self, path, mode):
         # print 'mkdir', path, mode
+        path = path.encode(ENCODING)
         ref = bs.put_blob('')
         attr = FileAttr(bs.TYPE_TREE, ref, mode, os.path.split(path)[-1])
         self.rootref = bs.set_attr(self.rootref, path, attr)
@@ -74,6 +81,7 @@ class BTFS(Operations):
     def open(self, path, flags):
         # TODO: If the write flag is set, open a temporary copy.
         # print 'open', path, flags
+        path = path.encode(ENCODING)
         ref = bs.blobref_by_path(self.rootref, path)
         self.fh += 1
         self.fh_refs[self.fh] = ref
@@ -85,10 +93,13 @@ class BTFS(Operations):
 
     def readdir(self, path, fh):
         # print 'readdir', path, fh
-        return ['.', '..'] + bs.files_by_path(self.rootref, path)
+        path = path.encode(ENCODING)
+        return ['.', '..'] + map(lambda s: s.decode(ENCODING),
+                                 bs.files_by_path(self.rootref, path))
 
     def readlink(self, path):
         # print 'readlink', path
+        path = path.encode(ENCODING)
         return bs.get_blob(self.rootref, path)
 
     def release(self, path, fh):
@@ -102,6 +113,8 @@ class BTFS(Operations):
 
     def rename(self, old, new):
         # print 'rename', old, new
+        old = old.encode(ENCODING)
+        new = new.encode(ENCODING)
         attr = bs.get_attr(self.rootref, old)
         old_dirpath, old_filename = os.path.split(old)
         new_dirpath, new_filename = os.path.split(new)
@@ -117,6 +130,7 @@ class BTFS(Operations):
 
     def rmdir(self, path):
         # print 'rmdir', path
+        path = path.encode(ENCODING)
         attr = bs.get_attr(self.rootref, path)
         if bs.get_blobsize(attr.ref):
             raise FuseOSError(errno.ENOTEMPTY)
@@ -135,6 +149,8 @@ class BTFS(Operations):
         # BUG: "too many levels of symbolic links" when trying to read a linked
         # file.
         # print 'symlink', target, source
+        target = target.encode(ENCODING)
+        source = source.encode(ENCODING)
         ref = bs.put_blob(source)
         attr = FileAttr(bs.TYPE_BLOB, ref, stat.S_IFLNK | 0755,
                         os.path.split(target)[1])
@@ -142,6 +158,7 @@ class BTFS(Operations):
 
     def truncate(self, path, length, fh=None):
         print 'truncate', path, length, fh
+        path = path.encode(ENCODING)
         attr = bs.get_attr(self.rootref, path)
         attr.ref = bs.put_blob(bs.get_blob(attr.ref, size=length))
         self.rootref = bs.set_attr(self.rootref, path, attr)
@@ -149,6 +166,7 @@ class BTFS(Operations):
             self.fh_refs[fh] = attr.ref
 
     def unlink(self, path):
+        path = path.encode(ENCODING)
         attr = bs.get_attr(self.rootref, path)
         attr.ref = None
         self.rootref = bs.set_attr(self.rootref, path, attr)
@@ -159,6 +177,7 @@ class BTFS(Operations):
 
     def write(self, path, data, offset, fh):
         # print 'write', path, offset, fh
+        path = path.encode(ENCODING)
         attr = bs.get_attr(self.rootref, path)
         if not attr:
             raise FuseOSError(errno.ENOENT)
