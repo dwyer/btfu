@@ -5,7 +5,22 @@ import traceback
 
 class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
+    def authenticate(self):
+        if self.server.auth_token is None:
+            return True
+        cookie = self.headers.get('Cookie')
+        if cookie is None:
+            return False
+        try:
+            key, value = cookie.split('=', 1)
+        except ValueError:
+            return False
+        return key == 'auth' and value == self.server.auth_token
+
     def do_GET(self, head=False):
+        if not self.authenticate():
+            self.response(status=403)
+            return
         try:
             blob = self.server.store.get_blob(self.path[1:])
             if blob is not None:
@@ -21,6 +36,9 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.do_GET(head=True)
 
     def do_POST(self):
+        if not self.authenticate():
+            self.response(status=403)
+            return
         try:
             if self.path == '/':
                 n = int(self.headers['Content-Length'])
@@ -40,12 +58,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 class BlobServer(SocketServer.TCPServer):
 
-    def __init__(self, store, host, port):
+    def __init__(self, store, host, port, auth_token=None):
         SocketServer.TCPServer.__init__(self, (host, port), BlobRequestHandler)
         self.store = store
-
-
-def serve(store, host, port):
-    print 'listening on %s:%d' % (host, port)
-    httpd = BlobServer(store, host, port)
-    httpd.serve_forever()
+        self.auth_token = auth_token

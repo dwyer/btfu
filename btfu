@@ -127,10 +127,15 @@ def btfu_roots(args):
 
 def btfu_serve(args):
     """Start the blob server."""
-    from btfupy import server
+    from btfupy.server import BlobServer
     host = args.host or args.conf['server-host']
     port = args.port or args.conf['server-port']
-    server.serve(args.store, host, port)
+    auth_token = args.conf.get('server-auth')
+    print >>sys.stderr, 'listening on %s:%d' % (host, port)
+    if auth_token is None:
+        print >>sys.stderr, 'WARNING: authentication is disabled'
+    httpd = BlobServer(args.store, host, port, auth_token=auth_token)
+    httpd.serve_forever()
 
 
 def btfu_setup(args):

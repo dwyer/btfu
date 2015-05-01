@@ -1,25 +1,36 @@
-import urllib
+import urllib2
+import sys
 
 
 class BlobClient:
 
-    def __init__(self, baseurl):
+    def __init__(self, baseurl, auth_token=None):
         self.baseurl = baseurl
+        self.auth_token = auth_token
 
     def get_blob(self, ref):
-        response = urllib.urlopen('%s/%s' % (self.baseurl, ref))
-        if response.code != 200:
+        request = urllib2.Request('%s/%s' % (self.baseurl, ref))
+        if self.auth_token is not None:
+            request.add_header('Cookie', 'auth=%s' % self.auth_token)
+        try:
+            response = urllib2.urlopen(request)
+        except urllib2.HTTPError, e:
+            print >>sys.stderr, e
             return None
         blob = response.read()
         response.close()
         return blob
 
     def put_blob(self, blob):
-        request = urllib.Request(self.baseurl, blob)
+        request = urllib2.Request(self.baseurl, blob)
         request.add_header('Content-Length', str(len(blob)))
         request.add_header('Content-Type', 'application/octet-stream')
-        response = urllib.urlopen(request)
-        if response.code != 200:
+        if self.auth_token is not None:
+            request.add_header('Cookie', 'auth=%s' % self.auth_token)
+        try:
+            response = urllib2.urlopen(request)
+        except urllib2.HTTPError, e:
+            print >>sys.stderr, e
             return None
         ref = response.read()
         response.close()
