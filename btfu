@@ -12,6 +12,14 @@ from btfupy import conf
 HOME_PATH = os.environ['HOME']
 
 
+DEFAULT_CONFIG = {
+    'blobstore-path': os.path.join(HOME_PATH, '.btfu'),
+    'client-url': 'localhost:3243',
+    'server-host': 'localhost',
+    'server-port': 3243,
+}
+
+
 def get_rootref():
     try:
         with open(bs.ROOTREF_FILE) as fp:
@@ -172,7 +180,7 @@ def main(args):
     args = parser.parse_args(args)
     func = args.func
     del args.func
-    args.conf = {}
+    args.conf = DEFAULT_CONFIG
     if os.path.exists(args.confpath):
         with open(args.confpath) as fp:
             args.conf = dict(args.conf, **conf.load(fp))
