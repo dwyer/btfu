@@ -130,7 +130,7 @@ def btfu_serve(args):
     from btfupy import server
     host = args.host or args.conf['server-host']
     port = args.port or args.conf['server-port']
-    server.serve(host, port)
+    server.serve(args.store, host, port)
 
 
 def btfu_setup(args):
