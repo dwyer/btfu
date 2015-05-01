@@ -29,6 +29,7 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write(blob)
 
 
-def serve(port=bs.DEFAULT_PORT):
-    httpd = SocketServer.TCPServer(('', port), Handler)
+def serve(host, port):
+    print 'listening on %s:%d' % (host, port)
+    httpd = SocketServer.TCPServer((host, port), Handler)
     httpd.serve_forever()

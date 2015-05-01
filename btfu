@@ -127,8 +127,10 @@ def btfu_roots(args):
 
 def btfu_serve(args):
     """Start the blob server."""
-    import server
-    server.serve()
+    from btfupy import server
+    host = args.host or args.conf['server-host']
+    port = args.port or args.conf['server-port']
+    server.serve(host, port)
 
 
 def btfu_setup(args):
@@ -173,6 +175,8 @@ def main(args):
     subparser = add_parser(subparsers, 'roots', btfu_roots)
     # serve
     subparser = add_parser(subparsers, 'serve', btfu_serve)
+    subparser.add_argument('--host', default=None)
+    subparser.add_argument('--port', default=0, type=int)
     # setup
     # TODO: make this automatic
     subparser = add_parser(subparsers, 'setup', btfu_setup)
