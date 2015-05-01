@@ -128,6 +128,12 @@ def btfu_setup(args):
     args.store.setup()
 
 
+def add_parser(subparsers, name, func):
+    subparser = subparsers.add_parser(name, help=func.__doc__)
+    subparser.set_defaults(func=func)
+    return subparser
+
+
 def main(args):
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--confpath',
@@ -135,43 +141,33 @@ def main(args):
                         help='config file to use')
     subparsers = parser.add_subparsers()
     # put
-    subparser = subparsers.add_parser('put', help=btfu_put.__doc__)
-    subparser.set_defaults(func=btfu_put)
+    subparser = add_parser(subparsers, 'put', btfu_put)
     subparser.add_argument('path', nargs='?')
     # get
-    subparser = subparsers.add_parser('get', help=btfu_get.__doc__)
-    subparser.set_defaults(func=btfu_get)
+    subparser = add_parser(subparsers, 'get', btfu_get)
     subparser.add_argument('ref')
     # commit
-    subparser = subparsers.add_parser('commit', help=btfu_commit.__doc__)
-    subparser.set_defaults(func=btfu_commit)
+    subparser = add_parser(subparsers, 'commit', btfu_commit)
     # checkout
-    subparser = subparsers.add_parser('checkout', help=btfu_checkout.__doc__)
-    subparser.set_defaults(func=btfu_checkout)
+    subparser = add_parser(subparsers, 'checkout', btfu_checkout)
     subparser.add_argument('treeref')
     subparser.add_argument('dest')
     # hist
-    subparser = subparsers.add_parser('hist', help=btfu_hist.__doc__)
-    subparser.set_defaults(func=btfu_hist)
+    subparser = add_parser(subparsers, 'hist', btfu_hist)
     # list
-    subparser = subparsers.add_parser('list', help=btfu_list.__doc__)
-    subparser.set_defaults(func=btfu_list)
+    subparser = add_parser(subparsers, 'list', btfu_list)
     subparser.add_argument('treeref', nargs='?')
     # mount
-    subparser = subparsers.add_parser('mount', help=btfu_mount.__doc__)
-    subparser.set_defaults(func=btfu_mount)
+    subparser = add_parser(subparsers, 'mount', btfu_mount)
     subparser.add_argument('mountpoint', nargs='?')
     subparser.add_argument('treeref', nargs='?')
     # roots
-    subparser = subparsers.add_parser('roots', help=btfu_roots.__doc__)
-    subparser.set_defaults(func=btfu_roots)
+    subparser = add_parser(subparsers, 'roots', btfu_roots)
     # serve
-    subparser = subparsers.add_parser('serve', help=btfu_serve.__doc__)
-    subparser.set_defaults(func=btfu_serve)
+    subparser = add_parser(subparsers, 'serve', btfu_serve)
     # setup
     # TODO: make this automatic
-    subparser = subparsers.add_parser('setup', help=btfu_setup.__doc__)
-    subparser.set_defaults(func=btfu_setup)
+    subparser = add_parser(subparsers, 'setup', btfu_setup)
     # ...
     args = parser.parse_args(args)
     func = args.func
