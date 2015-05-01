@@ -6,7 +6,7 @@ import getpass
 import os
 import sys
 
-import bs
+from btfupy import bs
 
 store = bs.RootStore()
 
@@ -94,7 +94,7 @@ def btfu_list(args):
 def btfu_mount(args):
     """Mount the given tree."""
     try:
-        import fs
+        from btfupy import fs
         if args.treeref is None:
             args.treeref = store.get_root(get_rootref()).tree.ref
         fs.mount(args.treeref, args.mountpoint)
