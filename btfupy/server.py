@@ -1,19 +1,24 @@
 import BaseHTTPServer
 import SocketServer
+import traceback
 
 
 class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
-    def do_GET(self):
+    def do_GET(self, head=False):
         try:
-            ref = self.path[1:]
-            blob = self.server.store.get_blob(ref)
+            blob = self.server.store.get_blob(self.path[1:])
             if blob is not None:
-                self.response(blob, content_type='application/octet-stream')
+                self.response(blob if not head else '',
+                              content_type='application/octet-stream')
             else:
                 self.response(status=404)
-        except Exception, e:
-            self.response(str(e), status=500)
+        except:
+            self.response(status=500)
+            traceback.print_exc()
+
+    def do_HEAD(self):
+        self.do_GET(head=True)
 
     def do_POST(self):
         try:
@@ -21,9 +26,10 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 n = int(self.headers['Content-Length'])
                 self.response(self.server.store.put_blob(self.rfile.read(n)))
             else:
-                self.response(status=404)
-        except Exception, e:
-            self.response(str(e), status=500)
+                self.response(status=405)
+        except:
+            self.response(status=500)
+            traceback.print_exc()
 
     def response(self, blob='', status=200, content_type='text/plain'):
         self.send_response(status)
