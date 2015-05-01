@@ -15,7 +15,7 @@ HOME_PATH = os.environ['HOME']
 DEFAULT_CONFIG = {
     'blobstore-path': os.path.join(HOME_PATH, '.btfu'),
     'client-url': 'localhost:3243',
-    'server-host': 'localhost',
+    'server-host': '',
     'server-port': 3243,
 }
 
