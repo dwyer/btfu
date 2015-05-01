@@ -8,7 +8,11 @@ def load(fp):
         line = line.strip()
         if not line or line.startswith('#'):
             continue
-        key, value = map(str.strip, line.split(' ', 1))
+        try:
+            key, value = map(str.strip, line.split(' ', 1))
+        except ValueError:
+            key = line
+            value = ''
         try:
             value = int(value)
         except ValueError:
