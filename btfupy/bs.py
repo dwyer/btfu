@@ -30,19 +30,28 @@ class BlobStore(object):
     def get_blob(self, ref, path=None, size=-1, offset=0):
         if path is not None:
             ref = self.blobref_by_path(ref, path)
+        path = self.get_blobpath(ref)
+        if path is None or not os.path.exists(path) or os.path.isdir(path):
+            return None
         try:
-            with open(self.get_blobpath(ref), 'rb') as f:
+            with open(path, 'rb') as f:
                 f.seek(offset)
                 return f.read(size)
         except IOError:
             return None
 
     def get_blobpath(self, ref, split=False):
-        a, b = ref.split('-', 1)
+        try:
+            a, b = ref.split('-', 1)
+        except ValueError:
+            return None
         return os.path.join(self.blobs_path, a, b[0:2], b[2:4], b[4:])
 
     def get_blobsize(self, ref):
-        return os.stat(self.get_blobpath(ref)).st_size
+        path = self.get_blobpath(ref)
+        if path is None or not os.path.exists(path) or os.path.isdir(path):
+            return None
+        return os.stat(path).st_size
 
     def put_blob(self, blob):
         ref = self.blobref(blob)
