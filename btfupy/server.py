@@ -1,5 +1,6 @@
 import BaseHTTPServer
 import SocketServer
+import ssl
 import traceback
 
 
@@ -58,7 +59,12 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 class BlobServer(SocketServer.TCPServer):
 
-    def __init__(self, store, host, port, auth_token=None):
+    def __init__(self, store, host, port, auth_token=None, ssl_key=None,
+                 ssl_cert=None):
         SocketServer.TCPServer.__init__(self, (host, port), BlobRequestHandler)
         self.store = store
         self.auth_token = auth_token
+        if ssl_key and ssl_cert:
+            self.socket = ssl.wrap_socket(self.socket, keyfile=ssl_key,
+                                          certfile=ssl_cert,
+                                          cert_reqs=ssl.CERT_NONE)

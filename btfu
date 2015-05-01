@@ -130,12 +130,17 @@ def btfu_serve(args):
     from btfupy.server import BlobServer
     host = args.host or args.conf['server-host']
     port = args.port or args.conf['server-port']
-    auth_token = args.conf.get('server-auth')
+    auth_token = args.conf.get('server-auth-token')
+    ssl_key = args.conf.get('server-ssl-key')
+    ssl_cert = args.conf.get('server-ssl-cert')
     print >>sys.stderr, 'listening on %s:%d' % (host, port)
     if auth_token is None:
         print >>sys.stderr, 'WARNING: authentication is disabled'
-    httpd = BlobServer(args.store, host, port, auth_token=auth_token)
-    httpd.serve_forever()
+    if not (ssl_key and ssl_cert):
+        print >>sys.stderr, 'WARNING: SSL is disabled'
+    server = BlobServer(args.store, host, port, auth_token=auth_token,
+                        ssl_cert=ssl_cert, ssl_key=ssl_key)
+    server.serve_forever()
 
 
 def btfu_setup(args):
