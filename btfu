@@ -104,13 +104,20 @@ def btfu_list(args):
 
 def btfu_mount(args):
     """Mount the given tree."""
-    try:
-        from btfupy import fs
-        if args.treeref is None:
-            args.treeref = args.store.get_root(get_rootref()).tree.ref
-        fs.mount(args.store, args.treeref, args.mountpoint)
-    except ImportError, e:
-        print >>sys.stderr, 'error: mount requires additional libraries:', e
+    from btfupy import fs
+    if args.treeref is None:
+        args.treeref = args.store.get_root(get_rootref()).tree.ref
+    tmp = args.mountpoint is None
+    if tmp:
+        import tempfile
+        args.mountpoint = tempfile.mkdtemp()
+    if args.run:
+        import subprocess
+        subprocess.Popen([args.run, args.mountpoint], preexec_fn=os.setpgrp)
+    print >>sys.stderr, 'mounting %s to %s' % (args.treeref, args.mountpoint)
+    fs.mount(args.store, args.treeref, args.mountpoint)
+    if tmp:
+        os.rmdir(args.mountpoint)
 
 
 def btfu_put(args):
@@ -178,8 +185,12 @@ def main(args):
     subparser.add_argument('treeref', nargs='?')
     # mount
     subparser = add_parser(subparsers, 'mount', btfu_mount)
-    subparser.add_argument('mountpoint', nargs='?')
-    subparser.add_argument('treeref', nargs='?')
+    subparser.add_argument('treeref', nargs='?',
+                           help='Reference to the tree to be mounted.')
+    subparser.add_argument('-m', '--mountpoint', default=None,
+                           help='Path to directory where tree gets mounted.')
+    subparser.add_argument('-r', '--run', default=None,
+                           help='Command to run with mountpoint as argument.')
     # roots
     subparser = add_parser(subparsers, 'roots', btfu_roots)
     # serve
