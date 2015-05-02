@@ -149,7 +149,10 @@ def btfu_serve(args):
         print >>sys.stderr, 'WARNING: SSL is disabled'
     daemon = server.BlobServer(store_path, host, port, auth_token=auth_token,
                                ssl_cert=ssl_cert, ssl_key=ssl_key)
-    daemon.serve_forever()
+    try:
+        daemon.serve_forever()
+    except KeyboardInterrupt:
+        daemon.shutdown()
 
 
 def add_parser(subparsers, name, func):
