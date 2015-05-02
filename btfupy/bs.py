@@ -27,9 +27,7 @@ class BlobStore(object):
     def blobref(self, blob):
         return 'sha1-%s' % hashlib.sha1(blob).hexdigest()
 
-    def get_blob(self, ref, path=None, size=-1, offset=0):
-        if path is not None:
-            ref = self.blobref_by_path(ref, path)
+    def get_blob(self, ref, size=-1, offset=0):
         path = self.get_blobpath(ref)
         if path is None or not os.path.exists(path) or os.path.isdir(path):
             return None
@@ -131,6 +129,10 @@ class FileStore(BlobStore):
             if name == attr.name:
                 return attr
         return None
+
+    def get_blob_by_path(self, treeref, path):
+        blobref = self.blobref_by_path(treeref, path)
+        return self.get_blob(blobref)
 
     def get_tree(self, ref, path=None):
         if path is not None:
