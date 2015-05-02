@@ -3,6 +3,8 @@ import SocketServer
 import ssl
 import traceback
 
+from . import bs
+
 
 class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -23,7 +25,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.response(status=403)
             return
         try:
-            blob = self.server.store.get_blob(self.path[1:])
+            blob = self.server.get_blob(self.path[1:])
             if blob is not None:
                 self.response(blob if not head else '',
                               content_length=len(blob),
@@ -44,7 +46,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         try:
             if self.path == '/':
                 n = int(self.headers['Content-Length'])
-                self.response(self.server.store.put_blob(self.rfile.read(n)))
+                self.response(self.server.put_blob(self.rfile.read(n)))
             else:
                 self.response(status=405)
         except:
@@ -62,12 +64,13 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write(blob)
 
 
-class BlobServer(SocketServer.TCPServer):
+class BlobServer(bs.BlobStore, SocketServer.TCPServer):
 
-    def __init__(self, store, host, port, auth_token=None, ssl_key=None,
+    def __init__(self, path, host, port, auth_token=None, ssl_key=None,
                  ssl_cert=None):
+        bs.BlobStore.__init__(self, path)
         SocketServer.TCPServer.__init__(self, (host, port), BlobRequestHandler)
-        self.store = store
+        self.path = path
         self.auth_token = auth_token
         if ssl_key and ssl_cert:
             self.socket = ssl.wrap_socket(self.socket, keyfile=ssl_key,

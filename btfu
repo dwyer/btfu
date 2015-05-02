@@ -148,9 +148,8 @@ def btfu_serve(args):
         print >>sys.stderr, 'WARNING: authentication is disabled'
     if not (ssl_key and ssl_cert):
         print >>sys.stderr, 'WARNING: SSL is disabled'
-    server = BlobServer(bs.BlobStore(store_path), host, port,
-                        auth_token=auth_token, ssl_cert=ssl_cert,
-                        ssl_key=ssl_key)
+    server = BlobServer(store_path, host, port, auth_token=auth_token,
+                        ssl_cert=ssl_cert, ssl_key=ssl_key)
     server.serve_forever()
 
 
