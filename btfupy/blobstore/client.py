@@ -1,6 +1,8 @@
 import os
 import sys
+import httplib
 import urllib2
+import urlparse
 
 from . import cache
 
@@ -12,13 +14,68 @@ class BlobClient(cache.BlobCache):
         if cache_path is None:
             cache_path = os.path.join(os.environ['HOME'], '.btfu')
         super(BlobClient, self).__init__(cache_path, memcache_url=memcache_url)
-        self.baseurl = baseurl
         self.auth_token = auth_token
+        url = urlparse.urlparse(baseurl)
+        if url.scheme == 'http':
+            connection_class = httplib.HTTPConnection
+        elif url.scheme == 'https':
+            connection_class = httplib.HTTPSConnection
+        self.connection = connection_class(url.hostname, url.port)
+
+    def __request(self, method, ref_or_blob):
+        if method == 'POST':
+            blob = ref_or_blob
+            path = '/'
+        else:
+            blob = None
+            path = '/%s' % ref_or_blob
+        self.connection.putrequest(method, path)
+        if blob is not None:
+            self.connection.putheader('Content-Length', str(len(blob)))
+            self.connection.putheader('Content-Type',
+                                      'application/octet-stream')
+        if self.auth_token is not None:
+            self.connection.putheader('Cookie', 'auth=%s' % self.auth_token)
+        self.connection.endheaders()
+        if blob is not None:
+            self.connection.send(blob)
+        return self.connection.getresponse()
+
+    def __get_blob_request(self, ref):
+        response = self.__request('GET', ref)
+        content = response.read()
+        if response.status == 200:
+            return content
+        return None
+
+    def __get_size_request(self, ref):
+        response = self.__request('HEAD', ref)
+        size = int(response.getheader('Content-Length'))
+        content = response.read()
+        if response.status == 200:
+            return size
+        return None
+
+    def __has_blob_request(self, ref):
+        response = self.__request('HEAD', ref)
+        content = response.read()
+        if response.status == 200:
+            return True
+        elif response.status == 404:
+            return False
+        return None
+
+    def __put_blob_request(self, blob):
+        response = self.__request('POST', blob)
+        content = response.read()
+        if response.status in [200, 304]:
+            return content
+        return None
 
     def get_blob(self, ref, size=-1, offset=0):
         blob = super(BlobClient, self).get_blob(ref, size=size, offset=offset)
         if blob is None:
-            blob = BlobRequest.get_blob(self.baseurl, ref, self.auth_token)
+            blob = self.__get_blob_request(ref)
         if blob is not None:
             super(BlobClient, self).put_blob(blob)
             if offset > 0:
@@ -31,79 +88,16 @@ class BlobClient(cache.BlobCache):
         size = super(BlobClient, self).get_size(ref)
         if size is not None:
             return size
-        size = BlobRequest.get_size(self.baseurl, ref, self.auth_token)
+        size = self.__get_size_request(ref)
         if size is not None:
             super(BlobClient, self).set_size(ref, size)
         return size
 
     def put_blob(self, blob):
         ref = self.blobref(blob)
-        if BlobRequest.has_blob(self.baseurl, ref, self.auth_token):
+        if self.__has_blob_request(ref):
             return ref
-        ref = BlobRequest.put_blob(self.baseurl, blob, self.auth_token)
+        ref = self.__put_blob_request(blob)
         if ref is not None:
             super(BlobClient, self).put_blob(blob)
-        return ref
-
-
-class BlobRequest(urllib2.Request):
-
-    def __init__(self, url, blob=None, auth_token=None):
-        urllib2.Request.__init__(self, url, blob)
-        if blob is not None:
-            self.add_header('Content-Length', str(len(blob)))
-            self.add_header('Content-Type', 'application/octet-stream')
-        if auth_token is not None:
-            self.add_header('Cookie', 'auth=%s' % auth_token)
-
-    def send(self):
-        try:
-            response = urllib2.urlopen(self)
-        except urllib2.HTTPError, e:
-            if e.code != 404:
-                print >>sys.stderr, e
-            return e
-        return response
-
-    @classmethod
-    def get_blob(cls, baseurl, ref, auth_token):
-        request = cls('%s/%s' % (baseurl, ref), auth_token=auth_token)
-        response = request.send()
-        if isinstance(response, urllib2.HTTPError):
-            return None
-        blob = response.read()
-        response.close()
-        return blob
-
-    @classmethod
-    def get_size(cls, baseurl, ref, auth_token):
-        request = cls('%s/%s' % (baseurl, ref), auth_token=auth_token)
-        request.get_method = lambda: 'HEAD'
-        response = request.send()
-        if isinstance(response, urllib2.HTTPError):
-            return None
-        size = int(response.info().getheader('Content-Length'))
-        response.close()
-        return size
-
-    @classmethod
-    def has_blob(cls, baseurl, ref, auth_token):
-        request = cls('%s/%s' % (baseurl, ref), auth_token=auth_token)
-        request.get_method = lambda: 'HEAD'
-        response = request.send()
-        if isinstance(response, urllib2.HTTPError):
-            if response.code == 404:
-                return False
-            return None
-        response.close()
-        return True
-
-    @classmethod
-    def put_blob(cls, baseurl, blob, auth_token):
-        request = cls(baseurl, blob, auth_token=auth_token)
-        response = request.send()
-        if isinstance(response, urllib2.HTTPError):
-            return None
-        ref = response.read()
-        response.close()
         return ref
