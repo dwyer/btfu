@@ -1,22 +1,26 @@
-import urllib2
+import os
 import sys
+import urllib2
 
-import memcache
+from . import cache
 
 
-class BlobClient(object):
+class BlobClient(cache.BlobCache):
 
-    def __init__(self, baseurl, auth_token):
+    def __init__(self, baseurl, auth_token=None, cache_path=None,
+                 memcache_url=None):
+        if cache_path is None:
+            cache_path = os.path.join(os.environ['HOME'], '.btfu')
+        super(BlobClient, self).__init__(cache_path, memcache_url=memcache_url)
         self.baseurl = baseurl
         self.auth_token = auth_token
-        self.memcache = memcache.Client(['127.0.0.1'])
 
     def get_blob(self, ref, size=-1, offset=0):
-        blob = self.memcache.get(ref)
+        blob = super(BlobClient, self).get_blob(ref, size=size, offset=offset)
         if blob is None:
             blob = BlobRequest.get_blob(self.baseurl, ref, self.auth_token)
         if blob is not None:
-            self.memcache.set(ref, blob)
+            super(BlobClient, self).put_blob(blob)
             if offset > 0:
                 blob = blob[offset:]
             if size > -1:
@@ -24,22 +28,21 @@ class BlobClient(object):
         return blob
 
     def get_size(self, ref):
-        size = self.memcache.get('size:' + ref)
+        size = super(BlobClient, self).get_size(ref)
         if size is not None:
             return size
-        blob = self.memcache.get(ref)
-        if blob is not None:
-            size = len(blob)
-        else:
-            size = BlobRequest.get_size(self.baseurl, ref, self.auth_token)
+        size = BlobRequest.get_size(self.baseurl, ref, self.auth_token)
         if size is not None:
-            self.memcache.set('size:' + ref, size)
+            super(BlobClient, self).set_size(ref, size)
         return size
 
     def put_blob(self, blob):
+        ref = self.blobref(blob)
+        if BlobRequest.has_blob(self.baseurl, ref, self.auth_token):
+            return ref
         ref = BlobRequest.put_blob(self.baseurl, blob, self.auth_token)
         if ref is not None:
-            self.memcache.set(ref, blob)
+            super(BlobClient, self).put_blob(blob)
         return ref
 
 
@@ -57,7 +60,8 @@ class BlobRequest(urllib2.Request):
         try:
             response = urllib2.urlopen(self)
         except urllib2.HTTPError, e:
-            print >>sys.stderr, e
+            if e.code != 404:
+                print >>sys.stderr, e
             return e
         return response
 
