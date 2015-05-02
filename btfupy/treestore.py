@@ -29,10 +29,10 @@ class FileAttr:
         return cls(typ, ref, int(mod, 8), name)
 
 
-class FileStore(client.BlobClient):
+class TreeStore(client.BlobClient):
 
     def __init__(self, baseurl, auth_token, root_name='.'):
-        super(FileStore, self).__init__(baseurl, auth_token)
+        super(TreeStore, self).__init__(baseurl, auth_token)
         self.root_path = os.path.abspath(root_name)
         self.key_id = ''
         self.__ignore_patterns = None
@@ -165,7 +165,7 @@ class RootAttr:
         return RootAttr(root, tree, ctime)
 
 
-class RootStore(FileStore):
+class RootStore(TreeStore):
 
     def get_root(self, ref):
         return RootAttr.parse(self.get_blob(ref))
