@@ -100,7 +100,7 @@ class BTFS(fuse.Operations):
     def readlink(self, path):
         # print 'readlink', path
         path = path.encode(ENCODING)
-        return self.store.get_blob(self.rootref, path)
+        return self.store.get_blob_by_path(self.rootref, path)
 
     def release(self, path, fh):
         # print 'release', path, fh
@@ -152,7 +152,7 @@ class BTFS(fuse.Operations):
         target = target.encode(ENCODING)
         source = source.encode(ENCODING)
         ref = self.store.put_blob(source)
-        attr = bs.FileAttr(self.store.TYPE_BLOB, ref, stat.S_IFLNK | 0755,
+        attr = bs.FileAttr(bs.TYPE_BLOB, ref, stat.S_IFLNK | 0755,
                            os.path.split(target)[1])
         self.rootref = self.store.set_attr(self.rootref, target, attr)
 
