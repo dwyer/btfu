@@ -4,11 +4,14 @@ import argparse
 import datetime
 import getpass
 import os
+import subprocess
 import sys
+import tempfile
 
-from btfupy import bs
 from btfupy import conf
-from btfupy import treestore
+from btfupy import fs
+from btfupy.blobstore import treestore
+from btfupy.blobstore import server
 
 HOME_PATH = os.environ['HOME']
 DEFAULT_BLOBSTORE_NAME = '.btfu'
@@ -104,15 +107,12 @@ def btfu_list(args):
 
 def btfu_mount(args):
     """Mount the given tree."""
-    from btfupy import fs
     if args.treeref is None:
         args.treeref = args.store.get_root(get_rootref()).tree.ref
     tmp = args.mountpoint is None
     if tmp:
-        import tempfile
         args.mountpoint = tempfile.mkdtemp()
     if args.run:
-        import subprocess
         subprocess.Popen([args.run, args.mountpoint], preexec_fn=os.setpgrp)
     print >>sys.stderr, 'mounting %s to %s' % (args.treeref, args.mountpoint)
     fs.mount(args.store, args.treeref, args.mountpoint)
@@ -136,7 +136,6 @@ def btfu_roots(args):
 
 def btfu_serve(args):
     """Start the blob server."""
-    from btfupy.server import BlobServer
     store_path = args.conf.get('blobstore-path')
     host = args.host or args.conf['server-host']
     port = args.port or args.conf['server-port']
@@ -148,9 +147,9 @@ def btfu_serve(args):
         print >>sys.stderr, 'WARNING: authentication is disabled'
     if not (ssl_key and ssl_cert):
         print >>sys.stderr, 'WARNING: SSL is disabled'
-    server = BlobServer(store_path, host, port, auth_token=auth_token,
-                        ssl_cert=ssl_cert, ssl_key=ssl_key)
-    server.serve_forever()
+    daemon = server.BlobServer(store_path, host, port, auth_token=auth_token,
+                               ssl_cert=ssl_cert, ssl_key=ssl_key)
+    daemon.serve_forever()
 
 
 def add_parser(subparsers, name, func):

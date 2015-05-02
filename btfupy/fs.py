@@ -6,7 +6,7 @@ import sys
 
 import fuse
 
-from . import treestore
+from .blobstore import treestore
 
 ENCODING = 'utf-8'
 
