@@ -18,11 +18,18 @@ class BlobStore(object):
                 except OSError, e:
                     print >>sys.stderr, e
 
+    def __get_path(self, ref, split=False):
+        try:
+            a, b = ref.split('-', 1)
+        except ValueError:
+            return None
+        return os.path.join(self.blobs_path, a, b[0:2], b[2:4], b[4:])
+
     def blobref(self, blob):
         return 'sha1-%s' % hashlib.sha1(blob).hexdigest()
 
     def get_blob(self, ref, size=-1, offset=0):
-        path = self.get_blobpath(ref)
+        path = self.__get_path(ref)
         if path is None or not os.path.exists(path) or os.path.isdir(path):
             return None
         try:
@@ -32,25 +39,18 @@ class BlobStore(object):
         except IOError:
             return None
 
-    def get_blobpath(self, ref, split=False):
-        try:
-            a, b = ref.split('-', 1)
-        except ValueError:
-            return None
-        return os.path.join(self.blobs_path, a, b[0:2], b[2:4], b[4:])
-
     def get_blobsize(self, ref):
-        path = self.get_blobpath(ref)
+        path = self.__get_path(ref)
         if path is None or not os.path.exists(path) or os.path.isdir(path):
             return None
         return os.stat(path).st_size
 
     def put_blob(self, blob):
         ref = self.blobref(blob)
-        blobpath = self.get_blobpath(ref)
-        if not os.path.exists(blobpath):
-            distutils.dir_util.mkpath(os.path.dirname(blobpath))
-            with open(blobpath, 'wb') as f:
+        path = self.__get_path(ref)
+        if not os.path.exists(path):
+            distutils.dir_util.mkpath(os.path.dirname(path))
+            with open(path, 'wb') as f:
                 f.write(blob)
-            os.chmod(blobpath, 0400)
+            os.chmod(path, 0400)
         return ref
