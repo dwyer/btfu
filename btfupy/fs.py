@@ -4,27 +4,27 @@ import os
 import stat
 import sys
 
-from fuse import FUSE, FuseOSError, Operations
+import fuse
 
 import bs
 
 ENCODING = 'utf-8'
 
 
-class BTFS(Operations):
+class BTFS(fuse.Operations):
 
     def __init__(self, store, rootref=None):
+        self.store = store
         self.rootref = rootref
         self.fh = 0
         self.fh_refs = {}
-        self.store = store
 
     def access(self, path, mode):
         # print 'access', path, mode
         path = path.encode(ENCODING)
         if self.store.blobref_by_path(self.rootref, path):
             return 0
-        raise FuseOSError(errno.EACCES)
+        raise fuse.FuseOSError(errno.EACCES)
 
     def chmod(self, path, mode):
         # print 'chmod', path, mode
@@ -59,17 +59,17 @@ class BTFS(Operations):
             return dict(st_mode=(stat.S_IFDIR | 0755), st_nlink=2)
         attr = self.store.get_attr(self.rootref, path)
         if not attr:
-            raise FuseOSError(errno.ENOENT)
+            raise fuse.FuseOSError(errno.ENOENT)
         return dict(st_mode=attr.mod,
                     st_size=self.store.get_blobsize(attr.ref))
 
     def getxattr(self, path, name, position=0):
         # print 'getxattr', path, name, position
-        raise FuseOSError(errno.ENOATTR)
+        raise fuse.FuseOSError(errno.ENOATTR)
 
     def listxattr(self, path):
         # print 'listxattr', path
-        raise FuseOSError(errno.ENOATTR)
+        raise fuse.FuseOSError(errno.ENOATTR)
 
     def mkdir(self, path, mode):
         # print 'mkdir', path, mode
@@ -109,7 +109,7 @@ class BTFS(Operations):
 
     def removexattr(self, path, name):
         # print 'removexattr', path, name
-        raise FuseOSError(errno.ENOATTR)
+        raise fuse.FuseOSError(errno.ENOATTR)
 
     def rename(self, old, new):
         # print 'rename', old, new
@@ -133,7 +133,7 @@ class BTFS(Operations):
         path = path.encode(ENCODING)
         attr = self.store.get_attr(self.rootref, path)
         if self.store.get_blobsize(attr.ref):
-            raise FuseOSError(errno.ENOTEMPTY)
+            raise fuse.FuseOSError(errno.ENOTEMPTY)
         attr.ref = None
         self.rootref = self.store.set_attr(self.rootref, path, attr)
 
@@ -181,7 +181,7 @@ class BTFS(Operations):
         path = path.encode(ENCODING)
         attr = self.store.get_attr(self.rootref, path)
         if not attr:
-            raise FuseOSError(errno.ENOENT)
+            raise fuse.FuseOSError(errno.ENOENT)
         attr.ref = self.fh_refs[fh] = self.store.put_blob(
             self.store.get_blob(self.fh_refs[fh], size=offset) + data)
         self.rootref = self.store.set_attr(self.rootref, path, attr)
@@ -190,4 +190,4 @@ class BTFS(Operations):
 
 def mount(store, treeref, mountpoint):
     logging.getLogger().setLevel(logging.DEBUG)
-    fuse = FUSE(BTFS(store, treeref), mountpoint, foreground=True)
+    fuse.FUSE(BTFS(store, treeref), mountpoint, foreground=True)
