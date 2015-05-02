@@ -130,7 +130,7 @@ def btfu_serve(args):
     from btfupy.server import BlobServer
     host = args.host or args.conf['server-host']
     port = args.port or args.conf['server-port']
-    auth_token = args.conf.get('server-auth-token')
+    auth_token = args.conf.get('auth-token')
     ssl_key = args.conf.get('server-ssl-key')
     ssl_cert = args.conf.get('server-ssl-cert')
     print >>sys.stderr, 'listening on %s:%d' % (host, port)
