@@ -1,6 +1,7 @@
-import os
-import sys
 import httplib
+import os
+import socket
+import sys
 import urllib2
 import urlparse
 
@@ -14,6 +15,7 @@ class BlobClient(cache.BlobCache):
         if cache_path is None:
             cache_path = os.path.join(os.environ['HOME'], '.btfu')
         super(BlobClient, self).__init__(cache_path, memcache_url=memcache_url)
+        self.baseurl = baseurl
         self.auth_token = auth_token
         url = urlparse.urlparse(baseurl)
         if url.scheme == 'http':
@@ -36,7 +38,11 @@ class BlobClient(cache.BlobCache):
                                       'application/octet-stream')
         if self.auth_token is not None:
             self.connection.putheader('Cookie', 'auth=%s' % self.auth_token)
-        self.connection.endheaders()
+        try:
+            self.connection.endheaders()
+        except socket.error, e:
+            print >>sys.stderr, '%s: %s' % (self.baseurl, e)
+            exit(e[0])
         if blob is not None:
             self.connection.send(blob)
         return self.connection.getresponse()
