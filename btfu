@@ -106,7 +106,7 @@ def btfu_mount(args):
         from btfupy import fs
         if args.treeref is None:
             args.treeref = args.store.get_root(get_rootref()).tree.ref
-        fs.mount(args.treeref, args.mountpoint)
+        fs.mount(args.store, args.treeref, args.mountpoint)
     except ImportError, e:
         print >>sys.stderr, 'error: mount requires additional libraries:', e
 
