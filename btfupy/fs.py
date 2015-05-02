@@ -61,8 +61,7 @@ class BTFS(fuse.Operations):
         attr = self.store.get_attr(self.rootref, path)
         if not attr:
             raise fuse.FuseOSError(errno.ENOENT)
-        return dict(st_mode=attr.mod,
-                    st_size=self.store.get_blobsize(attr.ref))
+        return dict(st_mode=attr.mod, st_size=self.store.get_size(attr.ref))
 
     def getxattr(self, path, name, position=0):
         # print 'getxattr', path, name, position
@@ -135,7 +134,7 @@ class BTFS(fuse.Operations):
         # print 'rmdir', path
         path = path.encode(ENCODING)
         attr = self.store.get_attr(self.rootref, path)
-        if self.store.get_blobsize(attr.ref):
+        if self.store.get_size(attr.ref):
             raise fuse.FuseOSError(errno.ENOTEMPTY)
         attr.ref = None
         self.rootref = self.store.set_attr(self.rootref, path, attr)

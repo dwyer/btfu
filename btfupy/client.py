@@ -23,7 +23,7 @@ class BlobClient(object):
                 blob = blob[:size]
         return blob
 
-    def get_blobsize(self, ref):
+    def get_size(self, ref):
         size = self.memcache.get('size:' + ref)
         if size is not None:
             return size
@@ -31,7 +31,7 @@ class BlobClient(object):
         if blob is not None:
             size = len(blob)
         else:
-            size = BlobRequest.get_blobsize(self.baseurl, ref, self.auth_token)
+            size = BlobRequest.get_size(self.baseurl, ref, self.auth_token)
         if size is not None:
             self.memcache.set('size:' + ref, size)
         return size
@@ -72,6 +72,17 @@ class BlobRequest(urllib2.Request):
         return blob
 
     @classmethod
+    def get_size(cls, baseurl, ref, auth_token):
+        request = cls('%s/%s' % (baseurl, ref), auth_token=auth_token)
+        request.get_method = lambda: 'HEAD'
+        response = request.send()
+        if isinstance(response, urllib2.HTTPError):
+            return None
+        size = int(response.info().getheader('Content-Length'))
+        response.close()
+        return size
+
+    @classmethod
     def has_blob(cls, baseurl, ref, auth_token):
         request = cls('%s/%s' % (baseurl, ref), auth_token=auth_token)
         request.get_method = lambda: 'HEAD'
@@ -82,17 +93,6 @@ class BlobRequest(urllib2.Request):
             return None
         response.close()
         return True
-
-    @classmethod
-    def get_blobsize(cls, baseurl, ref, auth_token):
-        request = cls('%s/%s' % (baseurl, ref), auth_token=auth_token)
-        request.get_method = lambda: 'HEAD'
-        response = request.send()
-        if isinstance(response, urllib2.HTTPError):
-            return None
-        size = int(response.info().getheader('Content-Length'))
-        response.close()
-        return size
 
     @classmethod
     def put_blob(cls, baseurl, blob, auth_token):

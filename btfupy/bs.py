@@ -39,7 +39,7 @@ class BlobStore(object):
         except IOError:
             return None
 
-    def get_blobsize(self, ref):
+    def get_size(self, ref):
         path = self.__get_path(ref)
         if path is None or not os.path.exists(path) or os.path.isdir(path):
             return None
