@@ -7,7 +7,7 @@ import sys
 from . import abstract
 
 
-class BlobStore(abstract.BlobStore):
+class LocalBlobStore(abstract.BlobStore):
 
     def __init__(self, path):
         self.store_path = path
