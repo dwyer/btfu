@@ -20,6 +20,7 @@ class BlobCache(local.LocalBlobStore):
             blob = super(BlobCache, self).get_blob(ref)
         if blob is not None:
             self.memcache_client.set(key, blob)
+            self.set_size(ref, len(blob))
             if offset > 0:
                 blob = blob[offset:]
             if size > -1:
@@ -39,6 +40,7 @@ class BlobCache(local.LocalBlobStore):
         ref = super(BlobCache, self).put_blob(blob)
         if ref is not None:
             self.memcache_client.set(self.__get_key(ref), blob)
+            self.set_size(ref, len(blob))
         return ref
 
     def set_size(self, ref, size):
