@@ -147,11 +147,6 @@ def btfu_serve(args):
     server.serve_forever()
 
 
-def btfu_setup(args):
-    """Set up the blobstore."""
-    args.store.setup()
-
-
 def add_parser(subparsers, name, func):
     subparser = subparsers.add_parser(name, help=func.__doc__)
     subparser.set_defaults(func=func)
@@ -191,9 +186,6 @@ def main(args):
     subparser = add_parser(subparsers, 'serve', btfu_serve)
     subparser.add_argument('--host', default=None)
     subparser.add_argument('--port', default=0, type=int)
-    # setup
-    # TODO: make this automatic
-    subparser = add_parser(subparsers, 'setup', btfu_setup)
     # ...
     args = parser.parse_args(args)
     func = args.func

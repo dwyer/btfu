@@ -2,6 +2,7 @@ import distutils.dir_util
 import hashlib
 import os
 import stat
+import sys
 
 
 class BlobStore(object):
@@ -10,6 +11,12 @@ class BlobStore(object):
         self.store_path = path
         self.blobs_path = os.path.join(self.store_path, 'blobs')
         self.roots_path = os.path.join(self.store_path, 'roots')
+        for path in [self.store_path, self.blobs_path, self.roots_path]:
+            if not os.path.exists(path):
+                try:
+                    os.mkdir(path)
+                except OSError, e:
+                    print >>sys.stderr, e
 
     def blobref(self, blob):
         return 'sha1-%s' % hashlib.sha1(blob).hexdigest()
@@ -47,11 +54,3 @@ class BlobStore(object):
                 f.write(blob)
             os.chmod(blobpath, 0400)
         return ref
-
-    def setup(self):
-        try:
-            os.mkdir(self.store_path)
-            os.mkdir(self.blobs_path)
-            os.mkdir(self.roots_path)
-        except OSError, e:
-            print e
