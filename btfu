@@ -7,10 +7,11 @@ import os
 import sys
 
 from btfupy import bs
-from btfupy import client
 from btfupy import conf
+from btfupy import treestore
 
 HOME_PATH = os.environ['HOME']
+DEFAULT_BLOBSTORE_NAME = '.btfu'
 
 
 DEFAULT_CONFIG = {
@@ -23,14 +24,14 @@ DEFAULT_CONFIG = {
 
 def get_rootref():
     try:
-        with open(bs.ROOTREF_FILE) as fp:
+        with open(treestore.ROOTREF_FILE) as fp:
             return fp.read()
     except IOError:
         return None
 
 
 def set_rootref(ref):
-    with open(bs.ROOTREF_FILE, 'wb') as fp:
+    with open(treestore.ROOTREF_FILE, 'wb') as fp:
         fp.write(ref)
 
 
@@ -39,11 +40,11 @@ def btfu_checkout(args):
     def loop(treeref, dirname='.'):
         for attr in args.store.get_tree(treeref):
             path = os.path.join(dirname, attr.name)
-            if attr.typ == bs.TYPE_BLOB:
+            if attr.typ == treestore.TYPE_BLOB:
                 with open(path, 'wb') as fp:
                     fp.write(args.store.get_blob(attr.ref))
                 os.chmod(path, attr.mod)
-            elif attr.typ == bs.TYPE_TREE:
+            elif attr.typ == treestore.TYPE_TREE:
                 if not os.path.exists(path):
                     os.mkdir(path)
                 os.chmod(path, attr.mod)
@@ -88,7 +89,7 @@ def btfu_list(args):
         for attr in args.store.get_tree(treeref):
             attr.name = os.path.join(dirpath, attr.name)
             print attr
-            if attr.typ == bs.TYPE_TREE:
+            if attr.typ == treestore.TYPE_TREE:
                 index_build(attr.ref, attr.name)
     if args.treeref is None:
         rootref = get_rootref()
@@ -129,7 +130,7 @@ def btfu_roots(args):
 def btfu_serve(args):
     """Start the blob server."""
     from btfupy.server import BlobServer
-    store_path = os.path.join(HOME_PATH, bs.BLOBSTORE_NAME)
+    store_path = args.conf.get('blobstore-path')
     host = args.host or args.conf['server-host']
     port = args.port or args.conf['server-port']
     auth_token = args.conf.get('auth-token')
@@ -201,8 +202,8 @@ def main(args):
     if os.path.exists(args.confpath):
         with open(args.confpath) as fp:
             args.conf = dict(args.conf, **conf.load(fp))
-    args.store = bs.RootStore(args.conf['client-url'],
-                              auth_token=args.conf.get('auth-token'))
+    args.store = treestore.RootStore(args.conf['client-url'],
+                                     auth_token=args.conf.get('auth-token'))
     func(args)
 
 

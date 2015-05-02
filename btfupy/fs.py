@@ -6,7 +6,7 @@ import sys
 
 import fuse
 
-import bs
+from . import treestore
 
 ENCODING = 'utf-8'
 
@@ -44,7 +44,8 @@ class BTFS(fuse.Operations):
         self.fh += 1
         fh = self.fh
         ref = self.fh_refs[fh] = self.store.put_blob('')
-        attr = bs.FileAttr(bs.TYPE_BLOB, ref, mode, os.path.split(path)[-1])
+        attr = treestore.FileAttr(treestore.TYPE_BLOB, ref, mode,
+                                  os.path.split(path)[-1])
         self.rootref = self.store.set_attr(self.rootref, path, attr)
         return fh
 
@@ -75,7 +76,8 @@ class BTFS(fuse.Operations):
         # print 'mkdir', path, mode
         path = path.encode(ENCODING)
         ref = self.store.put_blob('')
-        attr = bs.FileAttr(bs.TYPE_TREE, ref, mode, os.path.split(path)[-1])
+        attr = treestore.FileAttr(treestore.TYPE_TREE, ref, mode,
+                                  os.path.split(path)[-1])
         self.rootref = self.store.set_attr(self.rootref, path, attr)
 
     def open(self, path, flags):
@@ -122,7 +124,8 @@ class BTFS(fuse.Operations):
             attr.name = new_filename
             self.rootref = self.store.set_attr(self.rootref, old, attr)
             return
-        new_attr = bs.FileAttr(attr.typ, attr.typ, attr.mod, new_filename)
+        new_attr = treestore.FileAttr(attr.typ, attr.typ, attr.mod,
+                                      new_filename)
         attr.ref = None
         # TODO: try to do this without rebuilding the tree twice.
         self.rootref = self.store.set_attr(self.rootref, old, attr)
@@ -152,8 +155,9 @@ class BTFS(fuse.Operations):
         target = target.encode(ENCODING)
         source = source.encode(ENCODING)
         ref = self.store.put_blob(source)
-        attr = bs.FileAttr(bs.TYPE_BLOB, ref, stat.S_IFLNK | 0755,
-                           os.path.split(target)[1])
+        attr = treestore.FileAttr(treestore.TYPE_BLOB, ref,
+                                  stat.S_IFLNK | 0755,
+                                  os.path.split(target)[1])
         self.rootref = self.store.set_attr(self.rootref, target, attr)
 
     def truncate(self, path, length, fh=None):
