@@ -7,6 +7,7 @@ import os
 import sys
 
 from btfupy import bs
+from btfupy import client
 from btfupy import conf
 
 HOME_PATH = os.environ['HOME']
@@ -128,6 +129,7 @@ def btfu_roots(args):
 def btfu_serve(args):
     """Start the blob server."""
     from btfupy.server import BlobServer
+    store_path = os.path.join(HOME_PATH, bs.BLOBSTORE_NAME)
     host = args.host or args.conf['server-host']
     port = args.port or args.conf['server-port']
     auth_token = args.conf.get('auth-token')
@@ -138,8 +140,9 @@ def btfu_serve(args):
         print >>sys.stderr, 'WARNING: authentication is disabled'
     if not (ssl_key and ssl_cert):
         print >>sys.stderr, 'WARNING: SSL is disabled'
-    server = BlobServer(bs.BlobStore(), host, port, auth_token=auth_token,
-                        ssl_cert=ssl_cert, ssl_key=ssl_key)
+    server = BlobServer(bs.BlobStore(store_path), host, port,
+                        auth_token=auth_token, ssl_cert=ssl_cert,
+                        ssl_key=ssl_key)
     server.serve_forever()
 
 
@@ -198,7 +201,8 @@ def main(args):
     if os.path.exists(args.confpath):
         with open(args.confpath) as fp:
             args.conf = dict(args.conf, **conf.load(fp))
-    args.store = bs.RootStore()
+    args.store = bs.RootStore(args.conf['client-url'],
+                              auth_token=args.conf.get('auth-token'))
     func(args)
 
 

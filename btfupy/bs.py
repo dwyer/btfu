@@ -6,6 +6,8 @@ import stat
 import time
 import uuid
 
+from . import client
+
 BLOBSTORE_NAME = '.btfu'
 ROOTREF_FILE = '.rootref'
 HOME_DIR = os.environ['HOME']
@@ -19,8 +21,8 @@ TYPE_CTIME = 'ctime'
 
 class BlobStore(object):
 
-    def __init__(self):
-        self.repo_path = os.path.join(HOME_DIR, BLOBSTORE_NAME)
+    def __init__(self, path):
+        self.repo_path = path
         self.blobs_path = os.path.join(self.repo_path, 'blobs')
         self.roots_path = os.path.join(self.repo_path, 'roots')
 
@@ -101,10 +103,10 @@ class FileAttr:
         return cls(typ, ref, int(mod, 8), name)
 
 
-class FileStore(BlobStore):
+class FileStore(client.BlobClient):
 
-    def __init__(self, root_name='.'):
-        super(FileStore, self).__init__()
+    def __init__(self, baseurl, auth_token, root_name='.'):
+        super(FileStore, self).__init__(baseurl, auth_token)
         self.root_path = os.path.abspath(root_name)
         self.key_id = ''
         self.__ignore_patterns = None
