@@ -4,8 +4,10 @@ import os
 import stat
 import sys
 
+from . import abstract
 
-class BlobStore(object):
+
+class BlobStore(abstract.BlobStore):
 
     def __init__(self, path):
         self.store_path = path
@@ -44,6 +46,9 @@ class BlobStore(object):
         if path is None or not os.path.exists(path) or os.path.isdir(path):
             return None
         return os.stat(path).st_size
+
+    def has_blob(self, ref):
+        return os.path.isfile(self.__get_path(ref))
 
     def put_blob(self, blob):
         ref = self.blobref(blob)
