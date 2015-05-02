@@ -26,6 +26,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             blob = self.server.store.get_blob(self.path[1:])
             if blob is not None:
                 self.response(blob if not head else '',
+                              content_length=len(blob),
                               content_type='application/octet-stream')
             else:
                 self.response(status=404)
@@ -50,9 +51,13 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.response(status=500)
             traceback.print_exc()
 
-    def response(self, blob='', status=200, content_type='text/plain'):
+    def response(self, blob='', status=200, content_length=None,
+                 content_type='text/plain'):
+        if content_length is None:
+            content_length = len(blob)
         self.send_response(status)
-        self.send_header('Content-type', content_type)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', content_length)
         self.end_headers()
         self.wfile.write(blob)
 
