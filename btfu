@@ -14,28 +14,27 @@ from btfupy.blobstore import treestore
 from btfupy.blobstore import server
 
 HOME_PATH = os.environ['HOME']
-DEFAULT_BLOBSTORE_NAME = '.btfu'
-
+BLOBSTORE_FILENAME = '.btfu'
+ROOT_LINK_FILENAME = '.btfuroot'
 
 DEFAULT_CONFIG = {
-    'blobstore-path': os.path.join(HOME_PATH, '.btfu'),
+    'blobstore-path': os.path.join(HOME_PATH, BLOBSTORE_FILENAME),
     'client-url': 'localhost:3243',
     'server-host': '',
     'server-port': 3243,
 }
 
 
-def get_rootref():
+def get_root_link(exit_on_error=1):
     try:
-        with open(treestore.ROOTREF_FILE) as fp:
+        with open(ROOT_LINK_FILENAME) as fp:
             return fp.read()
     except IOError:
+        if exit_on_error:
+            print >>sys.stderr, ('not a btfu root; no such file: %s' %
+                                 ROOT_LINK_FILENAME)
+            exit(exit_on_error)
         return None
-
-
-def set_rootref(ref):
-    with open(treestore.ROOTREF_FILE, 'wb') as fp:
-        fp.write(ref)
 
 
 def btfu_checkout(args):
@@ -64,9 +63,14 @@ def btfu_commit(args):
     """Put the working directory tree and create a root reference."""
     # FIXME: right now `add` just rebuilds the entire root tree. It should be
     # able to add a single file and simply rebuild its parent branches.
-    rootref = get_rootref()
+    rootlink = get_root_link(False)
+    create = not rootlink
+    rootref = None if create else args.store.get_link(rootlink)
     rootref = args.store.put_root(rootref, '.')
-    set_rootref(rootref)
+    rootlink = args.store.set_link(rootlink, rootref)
+    if create and rootlink:
+        with open(ROOT_LINK_FILENAME, 'wb') as fp:
+            fp.write(rootlink)
     print rootref
 
 
@@ -100,7 +104,7 @@ def btfu_get_link(args):
 
 def btfu_hist(args):
     """Display the history of the given root."""
-    rootref = get_rootref()
+    rootref = args.store.get_link(get_root_link())
     while rootref is not None:
         root = args.store.get_root(rootref)
         print rootref, (datetime.datetime
@@ -118,7 +122,7 @@ def btfu_list(args):
             if attr.typ == treestore.TYPE_TREE:
                 index_build(attr.ref, attr.name)
     if args.treeref is None:
-        rootref = get_rootref()
+        rootref = args.store.get_link(get_root_link())
         root = args.store.get_root(rootref)
         tree = root.tree
         args.treeref = root.tree
@@ -131,7 +135,8 @@ def btfu_list(args):
 def btfu_mount(args):
     """Mount the given tree."""
     if args.treeref is None:
-        args.treeref = args.store.get_root(get_rootref()).tree.ref
+        rootref = args.store.get_link(get_root_link())
+        args.treeref = args.store.get_root(rootref).tree.ref
     tmp = args.mountpoint is None
     if tmp:
         args.mountpoint = tempfile.mkdtemp()

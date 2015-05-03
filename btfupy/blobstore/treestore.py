@@ -4,8 +4,6 @@ import time
 
 from . import client
 
-ROOTREF_FILE = '.rootref'
-
 TYPE_BLOB = 'blob'
 TYPE_TREE = 'tree'
 TYPE_PARENT = 'root'
@@ -70,7 +68,7 @@ class TreeStore(client.BlobClient):
 
     def ignore_file(self, name):
         if not self.__ignore_patterns:
-            self.__ignore_patterns = ['.btfu', ROOTREF_FILE]
+            self.__ignore_patterns = ['.btfu']
             with open(os.path.join(self.root_path, '.btfuignore')) as f:
                 for line in f:
                     line = line.strip()
