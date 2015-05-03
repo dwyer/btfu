@@ -6,6 +6,7 @@ import urllib2
 import urlparse
 
 from . import cache
+from . import server
 
 
 class BlobClient(cache.BlobCache):
@@ -24,18 +25,14 @@ class BlobClient(cache.BlobCache):
             connection_class = httplib.HTTPSConnection
         self.connection = connection_class(url.hostname, url.port)
 
-    def __request(self, method, ref_or_blob):
-        if method == 'POST':
-            blob = ref_or_blob
-            path = '/'
-        else:
-            blob = None
-            path = '/%s' % ref_or_blob
+    def __request(self, method, path, data=None):
         self.connection.putrequest(method, path)
-        if blob is not None:
-            self.connection.putheader('Content-Length', str(len(blob)))
+        if data is not None:
+            self.connection.putheader('Content-Length', str(len(data)))
             self.connection.putheader('Content-Type',
                                       'application/octet-stream')
+        else:
+            self.connection.putheader('Content-Length', '0')
         if self.auth_token is not None:
             self.connection.putheader('Cookie', 'auth=%s' % self.auth_token)
         try:
@@ -43,19 +40,26 @@ class BlobClient(cache.BlobCache):
         except socket.error, e:
             print >>sys.stderr, '%s: %s' % (self.baseurl, e)
             exit(e[0])
-        if blob is not None:
-            self.connection.send(blob)
+        if data is not None:
+            self.connection.send(data)
         return self.connection.getresponse()
 
     def __get_blob_request(self, ref):
-        response = self.__request('GET', ref)
+        response = self.__request('GET', server.BLOBS_PATH + ref)
+        content = response.read()
+        if response.status == 200:
+            return content
+        return None
+
+    def __get_link_request(self, link):
+        response = self.__request('GET', server.LINKS_PATH + link)
         content = response.read()
         if response.status == 200:
             return content
         return None
 
     def __get_size_request(self, ref):
-        response = self.__request('HEAD', ref)
+        response = self.__request('HEAD', server.BLOBS_PATH + ref)
         size = int(response.getheader('Content-Length'))
         content = response.read()
         if response.status == 200:
@@ -63,7 +67,7 @@ class BlobClient(cache.BlobCache):
         return None
 
     def __has_blob_request(self, ref):
-        response = self.__request('HEAD', ref)
+        response = self.__request('HEAD', server.BLOBS_PATH + ref)
         content = response.read()
         if response.status == 200:
             return True
@@ -72,7 +76,7 @@ class BlobClient(cache.BlobCache):
         return None
 
     def __put_blob_request(self, blob):
-        response = self.__request('POST', blob)
+        response = self.__request('POST', server.BLOBS_PATH, blob)
         content = response.read()
         if response.status in [200, 304]:
             return content
@@ -89,6 +93,9 @@ class BlobClient(cache.BlobCache):
             if size > -1:
                 blob = blob[:size]
         return blob
+
+    def get_link(self, link):
+        return self.__get_link_request(link)
 
     def get_size(self, ref):
         size = super(BlobClient, self).get_size(ref)
@@ -107,3 +114,13 @@ class BlobClient(cache.BlobCache):
         if ref is not None:
             super(BlobClient, self).put_blob(blob)
         return ref
+
+    def set_link(self, link, ref):
+        if ref:
+            response = self.__request('PUT', server.LINKS_PATH + link, ref)
+        else:
+            response = self.__request('DELETE', server.LINKS_PATH + link)
+        content = response.read()
+        if response.status == 200:
+            return content
+        return None
