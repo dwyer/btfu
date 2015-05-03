@@ -51,13 +51,6 @@ class BlobClient(cache.BlobCache):
             return content
         return None
 
-    def __get_link_request(self, link):
-        response = self.__request('GET', server.LINKS_PATH + link)
-        content = response.read()
-        if response.status == 200:
-            return content
-        return None
-
     def __get_size_request(self, ref):
         response = self.__request('HEAD', server.BLOBS_PATH + ref)
         size = int(response.getheader('Content-Length'))
@@ -95,7 +88,13 @@ class BlobClient(cache.BlobCache):
         return blob
 
     def get_link(self, link):
-        return self.__get_link_request(link)
+        if link is None:
+            link = ''
+        response = self.__request('GET', server.LINKS_PATH + link)
+        content = response.read()
+        if response.status == 200:
+            return content
+        return None
 
     def get_size(self, ref):
         size = super(BlobClient, self).get_size(ref)
@@ -116,6 +115,8 @@ class BlobClient(cache.BlobCache):
         return ref
 
     def set_link(self, link, ref):
+        if link is None:
+            link = ''
         if ref:
             response = self.__request('PUT', server.LINKS_PATH + link, ref)
         else:
