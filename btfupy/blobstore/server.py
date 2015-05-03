@@ -1,4 +1,5 @@
 import BaseHTTPServer
+import SocketServer
 import ssl
 import traceback
 
@@ -63,7 +64,8 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write(blob)
 
 
-class BlobServer(local.LocalBlobStore, BaseHTTPServer.HTTPServer):
+class BlobServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer,
+                 local.LocalBlobStore):
 
     def __init__(self, path, host, port, auth_token=None, ssl_key=None,
                  ssl_cert=None):
