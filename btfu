@@ -70,9 +70,32 @@ def btfu_commit(args):
     print rootref
 
 
+def btfu_remove_link(args):
+    """Remove a link."""
+    for link in args.links:
+        print 'deleted %s' % args.store.set_link(link, None)
+
+
+def btfu_rename_link(args):
+    """Rename a link."""
+    blobref = args.store.get_link(args.src)
+    if blobref is None:
+        return
+    link = args.store.set_link(args.dst, blobref)
+    if link is None:
+        return
+    args.store.set_link(args.src, None)
+    print link
+
+
 def btfu_get(args):
     """Print a blob to stdout."""
     print args.store.get_blob(args.ref),
+
+
+def btfu_get_link(args):
+    """Get the blobref that linkref refers to."""
+    print args.store.get_link(args.linkref or '')
 
 
 def btfu_hist(args):
@@ -155,6 +178,11 @@ def btfu_serve(args):
         daemon.shutdown()
 
 
+def btfu_set_link(args):
+    """Put a blob in the blobstore."""
+    print args.store.set_link(args.linkref or '', args.blobref)
+
+
 def add_parser(subparsers, name, func):
     subparser = subparsers.add_parser(name, help=func.__doc__)
     subparser.set_defaults(func=func)
@@ -173,6 +201,20 @@ def main(args):
     # get
     subparser = add_parser(subparsers, 'get', btfu_get)
     subparser.add_argument('ref')
+    # set link
+    subparser = add_parser(subparsers, 'set-link', btfu_set_link)
+    subparser.add_argument('linkref', nargs='?')
+    subparser.add_argument('blobref')
+    # get link
+    subparser = add_parser(subparsers, 'get-link', btfu_get_link)
+    subparser.add_argument('linkref', nargs='?')
+    # rename link
+    subparser = add_parser(subparsers, 'rename-link', btfu_rename_link)
+    subparser.add_argument('src')
+    subparser.add_argument('dst')
+    # remove link
+    subparser = add_parser(subparsers, 'remove-link', btfu_remove_link)
+    subparser.add_argument('links', nargs='+')
     # commit
     subparser = add_parser(subparsers, 'commit', btfu_commit)
     # checkout
