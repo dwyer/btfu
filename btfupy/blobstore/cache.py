@@ -14,17 +14,37 @@ class BlobCache(local.LocalBlobStore):
         self.memcache_client = memcache.Client([memcache_url or '127.0.0.1'])
 
     @classmethod
-    def __get_key(cls, ref, prefix='blob'):
-        return 'btfu:%s:%s' % (prefix, ref)
+    def __get_memcache_key(cls, prefix, postfix):
+        if not prefix or not postfix:
+            return None
+        return 'btfu:%s:%s' % (prefix, postfix)
+
+    def __memcache_get(self, prefix, postfix):
+        if not self.memcache_client:
+            return None
+        key = self.__get_memcache_key(prefix, postfix)
+        if key is None:
+            return None
+        return self.memcache_client.get(key)
+
+    def __memcache_set(self, prefix, postfix, value):
+        if not self.memcache_client:
+            return
+        if value is None:
+            return
+        key = self.__get_memcache_key(prefix, postfix)
+        if key is None:
+            return
+        self.memcache_client.add(key, value)
 
     def get_blob(self, ref, size=-1, offset=0):
-        key = self.__get_key(ref)
-        blob = self.memcache_client.get(key)
+        blob = self.memcache_get_blob(ref)
         if blob is None:
+            # Don't pass size or offset to superclass. We want the whole blob
+            # so we can store it in memory.
             blob = super(BlobCache, self).get_blob(ref)
         if blob is not None:
-            self.memcache_client.set(key, blob)
-            self.set_size(ref, len(blob))
+            self.memcache_set_blob(ref, blob)
             if offset > 0:
                 blob = blob[offset:]
             if size > -1:
@@ -32,20 +52,30 @@ class BlobCache(local.LocalBlobStore):
         return blob
 
     def get_size(self, ref):
-        size = self.memcache_client.get(self.__get_key(ref, 'size'))
+        size = self.memcache_get_size(ref)
         if size is not None:
             return size
         size = super(BlobCache, self).get_size(ref)
-        if size is not None:
-            self.set_size(ref, size)
+        self.memcache_set_size(ref, size)
         return size
 
     def put_blob(self, blob):
         ref = super(BlobCache, self).put_blob(blob)
-        if ref is not None:
-            self.memcache_client.set(self.__get_key(ref), blob)
-            self.set_size(ref, len(blob))
+        self.memcache_set_blob(ref, blob)
         return ref
 
     def set_size(self, ref, size):
-        self.memcache_client.set(self.__get_key(ref, 'size'), size)
+        self.memcache_set_size(ref, size)
+
+    def memcache_get_blob(self, ref):
+        return self.__memcache_get('blob', ref)
+
+    def memcache_get_size(self, ref):
+        return self.__memcache_get('size', ref)
+
+    def memcache_set_blob(self, ref, blob):
+        self.__memcache_set('blob', ref, blob)
+        self.__memcache_set('size', ref, len(blob))
+
+    def memcache_set_size(self, ref, size):
+        self.__memcache_set('size', ref, size)
