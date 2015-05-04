@@ -31,14 +31,14 @@ class BlobClient(cache.BlobCache):
 
     def __request(self, method, path, data=None):
         self.connection.putrequest(method, path)
+        if self.auth_token is not None:
+            self.connection.putheader('Authorization', self.auth_token)
         if data is not None:
             self.connection.putheader('Content-Length', str(len(data)))
             self.connection.putheader('Content-Type',
                                       'application/octet-stream')
         else:
             self.connection.putheader('Content-Length', '0')
-        if self.auth_token is not None:
-            self.connection.putheader('Cookie', 'auth=%s' % self.auth_token)
         try:
             self.connection.endheaders()
         except socket.error, e:

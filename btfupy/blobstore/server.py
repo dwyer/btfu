@@ -15,14 +15,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def authenticate(self):
         if self.server.auth_token is None:
             return True
-        cookie = self.headers.get('Cookie')
-        if cookie is None:
-            return False
-        try:
-            key, value = cookie.split('=', 1)
-        except ValueError:
-            return False
-        return key == 'auth' and value == self.server.auth_token
+        return self.server.auth_token == self.headers.get('Authorization')
 
     def do_DELETE(self):
         if not self.authenticate():
