@@ -1,8 +1,8 @@
 import httplib
 import os
 import socket
+import ssl
 import sys
-import urllib2
 import urlparse
 
 from . import cache
@@ -20,10 +20,17 @@ class BlobClient(cache.BlobCache):
         self.auth_token = auth_token
         url = urlparse.urlparse(baseurl)
         if url.scheme == 'http':
-            connection_class = httplib.HTTPConnection
+            self.connection = httplib.HTTPConnection(url.hostname, url.port)
         elif url.scheme == 'https':
-            connection_class = httplib.HTTPSConnection
-        self.connection = connection_class(url.hostname, url.port)
+            try:
+                self.connection = httplib.HTTPSConnection(
+                    url.hostname, url.port,
+                    context=ssl.SSLContext(ssl.PROTOCOL_TLSv1_2))
+            except AttributeError:
+                self.connection = httplib.HTTPSConnection(
+                    url.hostname, url.port)
+        else:
+            raise ValueError('invalid URL scheme: %r' % url.scheme)
 
     def __request(self, method, path, data=None):
         self.connection.putrequest(method, path)

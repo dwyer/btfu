@@ -19,7 +19,7 @@ ROOT_LINK_FILENAME = '.btfuroot'
 
 DEFAULT_CONFIG = {
     'blobstore-path': os.path.join(HOME_PATH, BLOBSTORE_FILENAME),
-    'client-url': 'localhost:3243',
+    'client-url': 'http://localhost:3243',
     'server-host': '',
     'server-port': 3243,
 }
