@@ -1,5 +1,4 @@
 import httplib
-import os
 import socket
 import ssl
 import sys
@@ -13,8 +12,6 @@ class BlobClient(cache.BlobCache):
 
     def __init__(self, baseurl, auth_token=None, cache_path=None,
                  memcache_url=None):
-        if cache_path is None:
-            cache_path = os.path.join(os.environ['HOME'], '.btfu')
         super(BlobClient, self).__init__(cache_path, memcache_url=memcache_url)
         self.baseurl = baseurl
         self.auth_token = auth_token

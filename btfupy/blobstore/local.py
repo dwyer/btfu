@@ -16,10 +16,7 @@ class LocalBlobStore(abstract.BlobStore):
         self.links_path = os.path.join(self.store_path, 'links')
         for path in [self.store_path, self.blobs_path, self.links_path]:
             if not os.path.exists(path):
-                try:
-                    os.mkdir(path)
-                except OSError, e:
-                    print >>sys.stderr, e
+                distutils.dir_util.mkpath(path)
 
     def __get_blob_path(self, ref, split=False):
         try:

@@ -1,3 +1,5 @@
+import os
+
 import memcache
 
 from . import local
@@ -5,7 +7,9 @@ from . import local
 
 class BlobCache(local.LocalBlobStore):
 
-    def __init__(self, path, memcache_url=None):
+    def __init__(self, path=None, memcache_url=None):
+        if path is None:
+            path = os.path.join(os.environ['HOME'], '.cache', 'btfu')
         super(BlobCache, self).__init__(path)
         self.memcache_client = memcache.Client([memcache_url or '127.0.0.1'])
 
