@@ -25,7 +25,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         content = self.rfile.read(length)
         if self.path.startswith(LINKS_PATH):
             link = self.path[len(LINKS_PATH):]
-            self.send_response(self.server.set_link(link, None))
+            self.send_content(self.server.set_link(link, None))
         else:
             self.send_error(501)
 
@@ -36,13 +36,13 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if self.path.startswith(BLOBS_PATH):
             blob = self.server.get_blob(self.path[len(BLOBS_PATH):])
             if blob is not None:
-                self.send_response(blob)
+                self.send_content(blob)
             else:
                 self.send_error(404)
         elif self.path.startswith(LINKS_PATH):
             blobref = self.server.get_link(self.path[len(LINKS_PATH):])
             if blobref is not None:
-                self.send_response(blobref)
+                self.send_content(blobref)
             else:
                 self.send_error(404)
         else:
@@ -58,9 +58,9 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         length = int(self.headers['Content-Length'])
         content = self.rfile.read(length)
         if self.path == BLOBS_PATH:
-            self.send_response(self.server.put_blob(content))
+            self.send_content(self.server.put_blob(content))
         elif self.path == LINKS_PATH:
-            self.send_response(self.server.set_link(None, content))
+            self.send_content(self.server.set_link(None, content))
         else:
             self.send_error(501)
 
@@ -72,7 +72,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         content = self.rfile.read(length)
         if self.path.startswith(LINKS_PATH):
             link = self.path[len(LINKS_PATH):]
-            self.send_response(self.server.set_link(link, content))
+            self.send_content(self.server.set_link(link, content))
         else:
             self.send_error(501)
 
@@ -84,16 +84,16 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_error(500)
             traceback.print_exc()
 
-    def send_error(self, code):
-        self.send_response('', code=code)
-
-    def send_response(self, content, content_type='text/plain', code=200):
-        BaseHTTPServer.BaseHTTPRequestHandler.send_response(self, code)
+    def send_content(self, content, content_type='text/plain', code=200):
+        self.send_response(code)
         self.send_header('Content-Length', str(len(content)))
         self.send_header('Content-Type', content_type)
         self.end_headers()
         if self.command != 'HEAD':
             self.wfile.write(content)
+
+    def send_error(self, code, message=None):
+        self.send_content('', code=code)
 
 
 class BlobServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer,
