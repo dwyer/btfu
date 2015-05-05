@@ -1,8 +1,12 @@
+import hashlib
+import hmac
 import httplib
 import socket
 import ssl
 import sys
+import time
 import urlparse
+import wsgiref.handlers
 
 from . import cache
 from . import server
@@ -31,14 +35,20 @@ class BlobClient(cache.BlobCache):
 
     def __request(self, method, path, data=None):
         self.connection.putrequest(method, path)
-        if self.auth_token is not None:
-            self.connection.putheader('Authorization', self.auth_token)
         if data is not None:
             self.connection.putheader('Content-Length', str(len(data)))
             self.connection.putheader('Content-Type',
                                       'application/octet-stream')
         else:
             self.connection.putheader('Content-Length', '0')
+        date = wsgiref.handlers.format_date_time(time.time())
+        self.connection.putheader('Date', date)
+        if self.auth_token:
+            signature = hmac.new(self.auth_token, digestmod=hashlib.sha1)
+            signature.update(method)
+            signature.update(path)
+            signature.update(date)
+            self.connection.putheader('Authorization', signature.hexdigest())
         try:
             self.connection.endheaders()
         except socket.error, e:

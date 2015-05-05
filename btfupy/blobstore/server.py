@@ -1,6 +1,7 @@
 import BaseHTTPServer
 import SocketServer
-import os
+import hashlib
+import hmac
 import ssl
 import traceback
 
@@ -15,7 +16,30 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def authenticate(self):
         if self.server.auth_token is None:
             return True
-        return self.server.auth_token == self.headers.get('Authorization')
+        authorization = self.headers.get('Authorization')
+        date = self.headers.get('Date')
+        if not (authorization or date):
+            return False
+        # TODO: assert that date is recent
+        signature = hmac.new(self.server.auth_token, digestmod=hashlib.sha1)
+        signature.update(self.command)
+        signature.update(self.path)
+        signature.update(date)
+        signature = signature.hexdigest()
+        if hasattr(hmac, 'compare_digest'):
+            return hmac.compare_digest(authorization, signature)
+        xs = map(ord, authorization)
+        ys = map(ord, signature)
+        n = len(xs) - len(ys)
+        padding = [-1] * abs(n) # a list of some number ord() will never return
+        if n < 0:
+            xs.extend(padding)
+        elif n > 0:
+            ys.extend(padding)
+        z = 0
+        for x, y in zip(xs, ys):
+            z |= x ^ y
+        return not z
 
     def do_DELETE(self):
         if not self.authenticate():
