@@ -46,7 +46,11 @@ class BlobClient(cache.BlobCache):
             exit(e[0])
         if data is not None:
             self.connection.send(data)
-        return self.connection.getresponse()
+        response = self.connection.getresponse()
+        if response.status == 403:
+            print >>sys.stderr, 'ERROR: Could not authenticate request.'
+            exit(response.status)
+        return response
 
     def __get_blob_request(self, ref):
         response = self.__request('GET', server.BLOBS_PATH + ref)
