@@ -57,7 +57,7 @@ class BlobClient(cache.BlobCache):
         if data is not None:
             self.connection.send(data)
         response = self.connection.getresponse()
-        if response.status == 403:
+        if response.status == httplib.FORBIDDEN:
             print >>sys.stderr, 'ERROR: Could not authenticate request.'
             exit(response.status)
         return response
@@ -65,7 +65,7 @@ class BlobClient(cache.BlobCache):
     def __get_blob_request(self, ref):
         response = self.__request('GET', server.BLOBS_PATH + ref)
         content = response.read()
-        if response.status == 200:
+        if response.status == httplib.OK:
             return content
         return None
 
@@ -73,23 +73,23 @@ class BlobClient(cache.BlobCache):
         response = self.__request('HEAD', server.BLOBS_PATH + ref)
         size = int(response.getheader('Content-Length'))
         content = response.read()
-        if response.status == 200:
+        if response.status == httplib.OK:
             return size
         return None
 
     def __has_blob_request(self, ref):
         response = self.__request('HEAD', server.BLOBS_PATH + ref)
         content = response.read()
-        if response.status == 200:
+        if response.status == httplib.OK:
             return True
-        elif response.status == 404:
+        elif response.status == httplib.NOT_FOUND:
             return False
         return None
 
     def __put_blob_request(self, blob):
         response = self.__request('POST', server.BLOBS_PATH, blob)
         content = response.read()
-        if response.status in [200, 304]:
+        if response.status == httplib.OK:
             return content
         return None
 
@@ -110,7 +110,7 @@ class BlobClient(cache.BlobCache):
             link = ''
         response = self.__request('GET', server.LINKS_PATH + link)
         content = response.read()
-        if response.status == 200:
+        if response.status == httplib.OK:
             return content
         return None
 
@@ -140,6 +140,6 @@ class BlobClient(cache.BlobCache):
         else:
             response = self.__request('DELETE', server.LINKS_PATH + link)
         content = response.read()
-        if response.status == 200:
+        if response.status == httplib.OK:
             return content
         return None

@@ -2,6 +2,7 @@ import BaseHTTPServer
 import SocketServer
 import hashlib
 import hmac
+import httplib
 import ssl
 import traceback
 
@@ -43,7 +44,7 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         if not self.authenticate():
-            self.send_error(403)
+            self.send_error(httplib.FORBIDDEN)
             return
         length = int(self.headers['Content-Length'])
         content = self.rfile.read(length)
@@ -51,33 +52,33 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             link = self.path[len(LINKS_PATH):]
             self.send_content(self.server.set_link(link, None))
         else:
-            self.send_error(501)
+            self.send_error(httplib.METHOD_NOT_ALLOWED)
 
     def do_GET(self):
         if not self.authenticate():
-            self.send_error(403)
+            self.send_error(httplib.FORBIDDEN)
             return
         if self.path.startswith(BLOBS_PATH):
             blob = self.server.get_blob(self.path[len(BLOBS_PATH):])
             if blob is not None:
                 self.send_content(blob)
             else:
-                self.send_error(404)
+                self.send_error(httplib.NOT_FOUND)
         elif self.path.startswith(LINKS_PATH):
             blobref = self.server.get_link(self.path[len(LINKS_PATH):])
             if blobref is not None:
                 self.send_content(blobref)
             else:
-                self.send_error(404)
+                self.send_error(httplib.NOT_FOUND)
         else:
-            self.send_error(501)
+            self.send_error(httplib.METHOD_NOT_ALLOWED)
 
     def do_HEAD(self):
         self.do_GET()
 
     def do_POST(self):
         if not self.authenticate():
-            self.send_error(403)
+            self.send_error(httplib.FORBIDDEN)
             return
         length = int(self.headers['Content-Length'])
         content = self.rfile.read(length)
@@ -86,11 +87,11 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         elif self.path == LINKS_PATH:
             self.send_content(self.server.set_link(None, content))
         else:
-            self.send_error(501)
+            self.send_error(httplib.METHOD_NOT_ALLOWED)
 
     def do_PUT(self):
         if not self.authenticate():
-            self.send_error(403)
+            self.send_error(httplib.FORBIDDEN)
             return
         length = int(self.headers['Content-Length'])
         content = self.rfile.read(length)
@@ -98,17 +99,18 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             link = self.path[len(LINKS_PATH):]
             self.send_content(self.server.set_link(link, content))
         else:
-            self.send_error(501)
+            self.send_error(httplib.METHOD_NOT_ALLOWED)
 
     def handle_one_request(self):
         self.protocol_version = 'HTTP/1.1'
         try:
             BaseHTTPServer.BaseHTTPRequestHandler.handle_one_request(self)
         except:
-            self.send_error(500)
+            self.send_error(httplib.INTERNAL_SERVER_ERROR)
             traceback.print_exc()
 
-    def send_content(self, content, content_type='text/plain', code=200):
+    def send_content(self, content, content_type='text/plain',
+                     code=httplib.OK):
         self.send_response(code)
         self.send_header('Content-Length', str(len(content)))
         self.send_header('Content-Type', content_type)
