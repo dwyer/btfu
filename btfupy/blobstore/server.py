@@ -119,7 +119,12 @@ class BlobRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.wfile.write(content)
 
     def send_error(self, code, message=None):
-        self.send_content('', code=code)
+        if code in [httplib.FORBIDDEN]:
+            BaseHTTPServer.BaseHTTPRequestHandler.send_error(
+                self, code, message)
+        else:
+            # send the error but don't close the connection
+            self.send_content('', code=code)
 
 
 class BlobServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer,
