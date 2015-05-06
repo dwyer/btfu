@@ -173,7 +173,7 @@ def btfu_serve(args):
     print >>sys.stderr, 'listening on %s:%d' % (host, port)
     if auth_token is None:
         print >>sys.stderr, 'WARNING: authentication is disabled'
-    if not (ssl_key and ssl_cert):
+    if not ssl_cert:
         print >>sys.stderr, 'WARNING: SSL is disabled'
     daemon = server.BlobServer(store_path, host, port, auth_token=auth_token,
                                ssl_cert=ssl_cert, ssl_key=ssl_key)

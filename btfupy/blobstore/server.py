@@ -137,7 +137,8 @@ class BlobServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer,
                                            BlobRequestHandler)
         self.path = path
         self.auth_token = auth_token
-        if ssl_key and ssl_cert:
-            self.socket = ssl.wrap_socket(self.socket, keyfile=ssl_key,
-                                          certfile=ssl_cert,
-                                          cert_reqs=ssl.CERT_NONE)
+        if ssl_cert and ssl_key:
+            self.socket = ssl.wrap_socket(self.socket, certfile=ssl_cert,
+                                          keyfile=ssl_key)
+        elif ssl_cert:
+            self.socket = ssl.wrap_socket(self.socket, certfile=ssl_cert)
