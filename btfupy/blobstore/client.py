@@ -52,13 +52,18 @@ class BlobClient(cache.BlobCache):
         try:
             self.connection.endheaders()
         except socket.error, e:
-            print >>sys.stderr, '%s: %s' % (self.baseurl, e)
+            print >>sys.stderr, 'FATAL: %s: %s' % (self.baseurl, e)
             exit(e[0])
         if data is not None:
             self.connection.send(data)
         response = self.connection.getresponse()
         if response.status == httplib.FORBIDDEN:
-            print >>sys.stderr, 'ERROR: Could not authenticate request.'
+            print >>sys.stderr, 'ERROR: Authorization failed.'
+        elif response.status == httplib.INTERNAL_SERVER_ERROR:
+            print >>sys.stderr, 'WARNING: Internal server error.'
+        connection = response.getheader('Connection')
+        if connection and connection.lower() == 'close':
+            print >>sys.stderr, 'FATAL: Server closed the connection.'
             exit(response.status)
         return response
 
