@@ -9,7 +9,6 @@ import sys
 import tempfile
 
 from btfupy import conf
-from btfupy import fs
 from btfupy.blobstore import treestore
 from btfupy.blobstore import server
 
@@ -143,6 +142,7 @@ def btfu_mount(args):
     if args.run:
         subprocess.Popen([args.run, args.mountpoint], preexec_fn=os.setpgrp)
     print >>sys.stderr, 'mounting %s to %s' % (args.treeref, args.mountpoint)
+    from btfupy import fs
     fs.mount(args.store, args.treeref, args.mountpoint)
     if tmp:
         os.rmdir(args.mountpoint)

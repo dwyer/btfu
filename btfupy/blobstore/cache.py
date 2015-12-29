@@ -1,6 +1,9 @@
 import os
 
-import memcache
+try:
+    import memcache
+except ImportError:
+    memcache = None
 
 from . import local
 
@@ -11,7 +14,9 @@ class BlobCache(local.LocalBlobStore):
         if path is None:
             path = os.path.join(os.environ['HOME'], '.cache', 'btfu')
         super(BlobCache, self).__init__(path)
-        self.memcache_client = memcache.Client([memcache_url or '127.0.0.1'])
+        self.memcache_client = None
+        if memcache:
+            self.memcache_client = memcache.Client([memcache_url or '0.0.0.0'])
 
     @classmethod
     def __get_memcache_key(cls, prefix, postfix):
